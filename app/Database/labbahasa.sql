@@ -243,6 +243,8 @@ CREATE TABLE `session_state` (
   `session_id` int UNSIGNED NOT NULL,
   `current_material_id` int UNSIGNED DEFAULT NULL,
   `broadcast_text` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `allow_student_mic` tinyint(1) NOT NULL DEFAULT '1',
+  `allow_student_speaker` tinyint(1) NOT NULL DEFAULT '1',
   `updated_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -250,10 +252,10 @@ CREATE TABLE `session_state` (
 -- Dumping data untuk tabel `session_state`
 --
 
-INSERT INTO `session_state` (`session_id`, `current_material_id`, `broadcast_text`, `updated_at`) VALUES
-(1, NULL, 'Test', '2026-02-01 02:04:24'),
-(2, NULL, 'test', '2026-02-01 02:20:25'),
-(3, NULL, NULL, '2026-02-01 02:51:07');
+INSERT INTO `session_state` (`session_id`, `current_material_id`, `broadcast_text`, `allow_student_mic`, `allow_student_speaker`, `updated_at`) VALUES
+(1, NULL, 'Test', 1, 1, '2026-02-01 02:04:24'),
+(2, NULL, 'test', 1, 1, '2026-02-01 02:20:25'),
+(3, NULL, NULL, 1, 1, '2026-02-01 02:51:07');
 
 --
 -- Indeks untuk tabel yang dibuang

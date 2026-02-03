@@ -92,8 +92,20 @@
       <button id="btnBroadcastText" type="button">📢 Broadcast</button>
     </div>
 
+    <div class="row gap wrap" style="margin-top:10px; align-items:center">
+      <span class="muted tiny" style="min-width:110px">Kontrol Siswa</span>
+      <label class="row gap" style="align-items:center">
+        <input id="chkAllowStudentMic" type="checkbox">
+        <span class="tiny">Siswa boleh atur mic</span>
+      </label>
+      <label class="row gap" style="align-items:center">
+        <input id="chkAllowStudentSpk" type="checkbox">
+        <span class="tiny">Siswa boleh atur speaker</span>
+      </label>
+    </div>
+
     <p class="muted tiny" style="margin:10px 0 0">
-      Broadcast ini untuk teks singkat. Voice memakai tombol Call per siswa.
+      Broadcast ini untuk teks singkat. Voice realtime berjalan otomatis (voice room).
     </p>
   <?php endif; ?>
 </div>
@@ -120,12 +132,14 @@
       <div class="callBar row between wrap gap" style="align-items:center">
         <div class="row gap wrap" style="align-items:center">
           <span class="badge">VOICE</span>
-          <span id="callStatus" class="muted" aria-live="polite">Idle</span>
+          <span id="callStatus" class="muted" aria-live="polite">Voice room: idle</span>
         </div>
 
         <div class="row gap wrap" style="align-items:center">
+          <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan output audio browser">🔊 Aktifkan Speaker</button>
+          <button id="btnAdminSpk" class="ok" type="button" title="Aktif/nonaktif speaker admin">🔊 Speaker Admin: ON</button>
           <button id="btnAdminMic" class="ok" type="button" title="Aktif/nonaktif mic admin">🎙️ Mic Admin: ON</button>
-          <button id="btnHangupCall" class="danger" type="button" disabled title="Akhiri panggilan">☎ Hangup</button>
+          <button id="btnHangupCall" class="danger" type="button" disabled title="Putuskan semua koneksi voice">☎ Putuskan Semua</button>
         </div>
       </div>
 
@@ -140,7 +154,7 @@
       <audio id="adminRemoteAudio" class="audioEl" controls playsinline></audio>
 
       <div class="muted tiny" style="margin-top:8px">
-        Jika audio tidak keluar: klik tombol Call pada peserta, lalu pastikan izin Microphone/Speaker di browser tidak diblok.
+        Jika audio tidak keluar: klik “Aktifkan Speaker”, pastikan “Speaker Admin” ON, dan izin audio di browser tidak diblok.
       </div>
 
       <hr>
@@ -152,7 +166,7 @@
       <div id="participantsGrid" class="gridCards"></div>
 
       <div class="muted tiny" style="margin-top:10px">
-        Tips: kalau peserta banyak, batasi Call hanya ke satu siswa sekaligus agar perangkat admin tidak berat.
+        Tips: jika peserta banyak, gunakan mute mic siswa untuk mengurangi beban audio di perangkat admin.
       </div>
     </section>
 

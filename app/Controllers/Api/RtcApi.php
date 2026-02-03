@@ -108,9 +108,14 @@ class RtcApi extends BaseController
             return $this->json(['ok' => false, 'error' => 'Too many requests'], 429);
         }
 
-        // 9) Security: students can only signal to admin
-        if (!$isAdmin && $toType !== 'admin') {
-            return $this->json(['ok' => false, 'error' => 'Students can only signal to admin'], 403);
+        // 9) Security: validate student -> participant
+        if (!$isAdmin && $toType === 'participant') {
+            if ($toParticipantId <= 0) {
+                return $this->json(['ok' => false, 'error' => 'to_participant_id required'], 400);
+            }
+            if ($toParticipantId === $participantId) {
+                return $this->json(['ok' => false, 'error' => 'Cannot signal self'], 400);
+            }
         }
 
         // 10) Validate sender participant is in session (anti spoof)
@@ -120,8 +125,8 @@ class RtcApi extends BaseController
             }
         }
 
-        // 11) Validate target participant (admin -> participant)
-        if ($isAdmin && $toType === 'participant') {
+        // 11) Validate target participant (admin/student -> participant)
+        if ($toType === 'participant') {
             if ($toParticipantId <= 0) {
                 return $this->json(['ok' => false, 'error' => 'to_participant_id required'], 400);
             }
@@ -230,8 +235,12 @@ class RtcApi extends BaseController
             $bucket = ['ts' => $now, 'count' => 0];
         }
 
-        // allow more for candidate signals
-        $limit = ($signalType === 'candidate') ? 220 : 60; // per 10s
+        // allow more for candidate signals (student mesh needs higher limit)
+        if ($signalType === 'candidate') {
+            $limit = $isAdmin ? 220 : 600;
+        } else {
+            $limit = $isAdmin ? 60 : 120;
+        }
 
         $bucket['count'] = (int)$bucket['count'] + 1;
         $cache->save($key, $bucket, 15);

@@ -81,9 +81,11 @@ $routes->group('api', static function($routes) {
 
     // Controls
     $routes->post('control/mic/toggle', 'Api\ControlApi::toggleMic', ['filter' => 'studentauth']);
+    $routes->post('control/speaker/toggle', 'Api\ControlApi::toggleSpeaker', ['filter' => 'studentauth']);
     $routes->post('control/admin/mic', 'Api\ControlApi::adminSetMic', ['filter' => 'adminauth']);
     $routes->post('control/admin/speaker', 'Api\ControlApi::adminSetSpeaker', ['filter' => 'adminauth']);
     $routes->post('control/admin/all', 'Api\ControlApi::adminSetAll', ['filter' => 'adminauth']);
+    $routes->post('control/admin/voice-lock', 'Api\ControlApi::adminSetVoiceLock', ['filter' => 'adminauth']);
     $routes->post('control/admin/broadcast-text', 'Api\ControlApi::adminSetBroadcastText', ['filter' => 'adminauth']);
 
     // WebRTC signaling (auth ditangani di controller admin/student)

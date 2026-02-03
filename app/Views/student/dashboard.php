@@ -27,6 +27,10 @@
       Mic: OFF
     </button>
 
+    <button id="btnSpk" type="button" class="btn" title="Aktif/nonaktif speaker kamu">
+      Speaker: ON
+    </button>
+
     <a class="btn" href="/student/settings">⚙ Pengaturan</a>
   </div>
 </div>
@@ -61,8 +65,8 @@
     <audio id="remoteAudio" class="audioEl" controls playsinline></audio>
 
     <div class="muted tiny" style="margin-top:8px">
-      Jika tidak bunyi: klik “Aktifkan Speaker”, lalu cek apakah speaker kamu dimute admin.
-      Mic hanya bisa aktif jika browser memberi izin.
+      Jika tidak bunyi: klik “Aktifkan Speaker” agar browser meminta izin audio, lalu cek apakah speaker kamu dimute admin.
+      Mic/speaker bisa dikunci oleh admin.
       <br>
       Catatan: mic/speaker WebRTC butuh HTTPS (atau localhost).
     </div>

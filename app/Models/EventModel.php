@@ -55,7 +55,7 @@ class EventModel extends Model
             $b->whereIn('audience', $audiences);
         }
 
-        $rows = $b->orderBy('id', 'ASC')->limit(200)->get()->getResultArray();
+        $rows = $b->orderBy('id', 'ASC')->limit(800)->get()->getResultArray();
 
         $out = [];
         foreach ($rows as $r) {

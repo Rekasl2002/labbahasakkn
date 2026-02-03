@@ -14,6 +14,10 @@
     selectedMicId: '',
     selectedSpkId: '',
     devicePermissionAsked: false,
+    audioUnlocked: false,
+    allowStudentMic: true,
+    allowStudentSpeaker: true,
+    adminSpeakerOn: true,
   };
 
   const grid = document.getElementById('participantsGrid');
@@ -24,24 +28,36 @@
   const privateTargetSel = document.getElementById('privateTarget');
   const broadcastInput = document.getElementById('broadcastText');
   const btnBroadcast = document.getElementById('btnBroadcastText');
+  const chkAllowStudentMic = document.getElementById('chkAllowStudentMic');
+  const chkAllowStudentSpk = document.getElementById('chkAllowStudentSpk');
   const matBox = document.getElementById('currentMaterialBox');
   const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
 
   // Voice (WebRTC)
   const callStatusEl = document.getElementById('callStatus');
+  const btnEnableAdminAudio = document.getElementById('btnEnableAdminAudio');
+  const btnAdminSpk = document.getElementById('btnAdminSpk');
   const btnAdminMic = document.getElementById('btnAdminMic');
   const btnHangupCall = document.getElementById('btnHangupCall');
   const adminRemoteAudio = document.getElementById('adminRemoteAudio');
   const selAdminMic = document.getElementById('selAdminMic');
   const selAdminSpk = document.getElementById('selAdminSpk');
 
+  const audioPool = (function(){
+    const existing = document.getElementById('adminAudioPool');
+    if(existing) return existing;
+    const el = document.createElement('div');
+    el.id = 'adminAudioPool';
+    el.style.display = 'none';
+    document.body.appendChild(el);
+    return el;
+  })();
+
   const rtc = {
-    pc: null,
-    callId: null,
-    targetPid: null,
-    pendingCandidates: [],
+    peers: new Map(),
     localStream: null,
     localTrack: null,
+    primaryAudioPid: null,
     micOn: true,
   };
 
@@ -65,6 +81,11 @@
     if(callStatusEl) callStatusEl.textContent = text || '';
   }
 
+  function syncLockUI(){
+    if(chkAllowStudentMic) chkAllowStudentMic.checked = !!state.allowStudentMic;
+    if(chkAllowStudentSpk) chkAllowStudentSpk.checked = !!state.allowStudentSpeaker;
+  }
+
   function getSaved(key){
     try{ return localStorage.getItem(key) || ''; }catch(e){ return ''; }
   }
@@ -84,13 +105,49 @@
   }
 
   function applySpeakerDevice(){
-    if(!adminRemoteAudio || !selAdminSpk) return;
-    if(typeof adminRemoteAudio.setSinkId !== 'function'){
-      return;
-    }
+    if(!selAdminSpk) return;
     const id = state.selectedSpkId || '';
     if(!id) return;
-    adminRemoteAudio.setSinkId(id).catch(()=>{});
+
+    const applyTo = (el)=>{
+      if(!el || typeof el.setSinkId !== 'function') return;
+      el.setSinkId(id).catch(()=>{});
+    };
+
+    applyTo(adminRemoteAudio);
+    if(audioPool){
+      audioPool.querySelectorAll('audio').forEach(applyTo);
+    }
+  }
+
+  async function unlockAdminAudio(){
+    state.audioUnlocked = true;
+    if(btnEnableAdminAudio) btnEnableAdminAudio.classList.add('ok');
+
+    if(!state.devicePermissionAsked){
+      await requestDeviceAccess();
+    }
+
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC){
+        const ctx = new AC();
+        await ctx.resume().catch(()=>{});
+      }
+    }catch(e){}
+
+    if(state.adminSpeakerOn && adminRemoteAudio && adminRemoteAudio.srcObject){
+      adminRemoteAudio.play().catch(()=>{});
+    }
+    if(audioPool){
+      audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{}));
+    }
+
+    updateVoiceStatus();
+  }
+
+  if(btnEnableAdminAudio){
+    btnEnableAdminAudio.addEventListener('click', unlockAdminAudio);
   }
 
   async function refreshDevices(){
@@ -225,13 +282,163 @@
     rtc.localTrack = null;
   }
 
-  function closePeerOnly(){
-    if(rtc.pc){
-      try{ rtc.pc.onicecandidate = null; rtc.pc.ontrack = null; }catch(e){}
-      try{ rtc.pc.close(); }catch(e){}
+  function ensurePeerAudio(pid){
+    if(adminRemoteAudio && (rtc.primaryAudioPid === null || rtc.primaryAudioPid === pid)){
+      if(rtc.primaryAudioPid === null) rtc.primaryAudioPid = pid;
+      return adminRemoteAudio;
     }
-    rtc.pc = null;
-    rtc.pendingCandidates = [];
+    if(!audioPool) return null;
+    let el = audioPool.querySelector(`audio[data-pid="${pid}"]`);
+    if(!el){
+      el = document.createElement('audio');
+      el.dataset.pid = String(pid);
+      el.autoplay = true;
+      el.playsInline = true;
+      el.className = 'audioEl';
+      audioPool.appendChild(el);
+    }
+    return el;
+  }
+
+  function updateVoiceStatus(){
+    if(!callStatusEl) return;
+    const total = rtc.peers.size;
+    let connected = 0;
+    for(const peer of rtc.peers.values()){
+      if(peer.pc && peer.pc.connectionState === 'connected') connected++;
+    }
+    setCallStatus(total ? `Voice room: ${connected}/${total} tersambung` : 'Voice room: idle');
+    if(btnHangupCall) btnHangupCall.disabled = (total === 0);
+  }
+
+  function createPeer(pid, callId){
+    const pc = new RTCPeerConnection(getRtcConfig());
+    const peer = { pid, callId, pc, pendingCandidates: [], audioEl: null };
+    rtc.peers.set(pid, peer);
+
+    pc.onicecandidate = (ev)=>{
+      if(ev.candidate){
+        const cand = (ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
+        sendRtc(pid, 'candidate', { candidate: cand }, callId).catch(()=>{});
+      }
+    };
+
+    pc.ontrack = (ev)=>{
+      const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : null;
+      if(stream){
+        const audioEl = ensurePeerAudio(pid);
+        peer.audioEl = audioEl;
+        if(audioEl){
+          audioEl.srcObject = stream;
+          audioEl.muted = !state.adminSpeakerOn;
+          applySpeakerDevice();
+
+          if(state.audioUnlocked && state.adminSpeakerOn){
+            audioEl.play().catch(()=>{});
+          }else{
+            setCallStatus('Ada audio masuk. Klik "Aktifkan Speaker".');
+          }
+        }
+      }
+    };
+
+    pc.onconnectionstatechange = ()=>{
+      if(!pc.connectionState) return;
+      updateVoiceStatus();
+      if(pc.connectionState === 'failed' || pc.connectionState === 'closed'){
+        closePeer(pid, false);
+      }
+    };
+
+    if(rtc.localStream && rtc.localStream.getTracks().length){
+      rtc.localStream.getTracks().forEach(t=>{
+        try{ pc.addTrack(t, rtc.localStream); }catch(e){}
+      });
+      if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+    }
+
+    updateVoiceStatus();
+    return peer;
+  }
+
+  function getOrCreatePeer(pid, callId){
+    let peer = rtc.peers.get(pid);
+    if(peer && callId && peer.callId !== callId){
+      closePeer(pid, false);
+      peer = null;
+    }
+    if(!peer){
+      peer = createPeer(pid, callId || '');
+    }else if(callId){
+      peer.callId = callId;
+    }
+    return peer;
+  }
+
+  function attachLocalTrackToAll(){
+    if(!rtc.localStream || !rtc.localTrack) return;
+    for(const peer of rtc.peers.values()){
+      const sender = peer.pc.getSenders ? peer.pc.getSenders().find(s=> s.track && s.track.kind === 'audio') : null;
+      if(sender){
+        sender.replaceTrack(rtc.localTrack).catch(()=>{});
+      }else{
+        try{ peer.pc.addTrack(rtc.localTrack, rtc.localStream); }catch(e){}
+      }
+    }
+  }
+
+  function closePeer(pid, sendSignal){
+    const peer = rtc.peers.get(pid);
+    if(!peer) return;
+
+    if(sendSignal && peer.callId){
+      post('/api/rtc/signal', {
+        to_type: 'participant',
+        to_participant_id: pid,
+        signal_type: 'hangup',
+        call_id: peer.callId,
+        data: JSON.stringify({}),
+      }).catch(()=>{});
+    }
+
+    if(peer.pc){
+      try{ peer.pc.onicecandidate = null; peer.pc.ontrack = null; }catch(e){}
+      try{ peer.pc.close(); }catch(e){}
+    }
+
+    if(peer.audioEl){
+      try{ peer.audioEl.srcObject = null; }catch(e){}
+      if(peer.audioEl !== adminRemoteAudio){
+        try{ peer.audioEl.remove(); }catch(e){}
+      }else{
+        rtc.primaryAudioPid = null;
+      }
+    }
+
+    rtc.peers.delete(pid);
+    updateVoiceStatus();
+  }
+
+  function closeAllPeers(sendSignal){
+    for(const pid of Array.from(rtc.peers.keys())){
+      closePeer(pid, sendSignal);
+    }
+  }
+
+  function sendBeaconHangupAll(){
+    try{
+      if(!navigator.sendBeacon) return;
+      for(const [pid, peer] of rtc.peers.entries()){
+        if(!peer.callId) continue;
+        const body = new URLSearchParams();
+        body.append('to_type', 'participant');
+        body.append('to_participant_id', String(pid));
+        body.append('signal_type', 'hangup');
+        body.append('call_id', String(peer.callId));
+        body.append('data', '{}');
+        navigator.sendBeacon(API('/api/rtc/signal'), body);
+      }
+    }catch(e){}
   }
 
   async function post(url, data){
@@ -254,51 +461,12 @@
     });
   }
 
-  function sendBeaconHangup(){
-    try{
-      const pid = rtc.targetPid;
-      const cid = rtc.callId;
-      if(!pid || !cid) return;
-
-      const body = new URLSearchParams();
-      body.append('to_type', 'participant');
-      body.append('to_participant_id', String(pid));
-      body.append('signal_type', 'hangup');
-      body.append('call_id', String(cid));
-      body.append('data', '{}');
-
-      if(navigator.sendBeacon){
-        navigator.sendBeacon(API('/api/rtc/signal'), body);
-      }
-    }catch(e){}
-  }
-
-  async function hangup(sendSignal){
-    const pid = rtc.targetPid;
-    const cid = rtc.callId;
-
-    if(sendSignal && pid && cid){
-      try{
-        await post('/api/rtc/signal', {
-          to_type: 'participant',
-          to_participant_id: pid,
-          signal_type: 'hangup',
-          call_id: cid,
-          data: JSON.stringify({}),
-        });
-      }catch(e){}
-    }
-
-    closePeerOnly();
+  async function hangupAll(sendSignal){
+    closeAllPeers(sendSignal);
     if(adminRemoteAudio) adminRemoteAudio.srcObject = null;
-
-    rtc.callId = null;
-    rtc.targetPid = null;
-
-    stopLocalStream();
-    setCallStatus('Idle');
-    if(btnHangupCall) btnHangupCall.disabled = true;
-
+    rtc.primaryAudioPid = null;
+    if(!rtc.micOn) stopLocalStream();
+    updateVoiceStatus();
     scheduleRenderParticipants();
   }
 
@@ -308,16 +476,61 @@
     btnAdminMic.textContent = rtc.micOn ? 'Mic Admin: ON' : 'Mic Admin: OFF';
   }
 
+  function syncAdminSpkBtn(){
+    if(!btnAdminSpk) return;
+    btnAdminSpk.classList.toggle('ok', state.adminSpeakerOn);
+    btnAdminSpk.textContent = state.adminSpeakerOn ? 'Speaker Admin: ON' : 'Speaker Admin: OFF';
+  }
+
+  function applyAdminSpeakerState(){
+    if(adminRemoteAudio) adminRemoteAudio.muted = !state.adminSpeakerOn;
+    if(audioPool){
+      audioPool.querySelectorAll('audio').forEach(a=>{
+        a.muted = !state.adminSpeakerOn;
+        if(state.adminSpeakerOn && state.audioUnlocked){
+          a.play().catch(()=>{});
+        }
+      });
+    }
+    if(state.adminSpeakerOn && state.audioUnlocked && adminRemoteAudio && adminRemoteAudio.srcObject){
+      adminRemoteAudio.play().catch(()=>{});
+    }
+  }
+
   function applyAdminMic(){
     if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
   }
 
+  if(btnAdminSpk){
+    syncAdminSpkBtn();
+    btnAdminSpk.addEventListener('click', ()=>{
+      state.adminSpeakerOn = !state.adminSpeakerOn;
+      syncAdminSpkBtn();
+      applyAdminSpeakerState();
+    });
+  }
+
   if(btnAdminMic){
     syncAdminMicBtn();
-    btnAdminMic.addEventListener('click', ()=>{
+    btnAdminMic.addEventListener('click', async ()=>{
       rtc.micOn = !rtc.micOn;
       syncAdminMicBtn();
-      applyAdminMic();
+
+      if(rtc.micOn){
+        try{
+          await ensureLocalStream();
+          attachLocalTrackToAll();
+          renegotiateAllPeers();
+          applyAdminMic();
+          refreshDevices();
+        }catch(err){
+          rtc.micOn = false;
+          syncAdminMicBtn();
+          appendChat('System', `Mic admin tidak bisa diakses: ${err.message||err}`);
+        }
+      }else{
+        applyAdminMic();
+      }
     });
 
     if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
@@ -326,7 +539,7 @@
   }
 
   if(btnHangupCall){
-    btnHangupCall.addEventListener('click', ()=> hangup(true));
+    btnHangupCall.addEventListener('click', ()=> hangupAll(true));
   }
 
   if(selAdminMic){
@@ -336,23 +549,26 @@
     selAdminMic.addEventListener('change', async ()=>{
       state.selectedMicId = selAdminMic.value || '';
       save(STORAGE.mic, state.selectedMicId);
-      if(rtc.localStream || rtc.pc){
+      if(rtc.localStream || rtc.peers.size){
         try{
           const oldStream = rtc.localStream;
           const newStream = await getUserMediaWithSelectedMic();
           const newTrack = newStream.getAudioTracks()[0] || null;
           if(newTrack){
-            const sender = (rtc.pc && rtc.pc.getSenders) ? rtc.pc.getSenders().find(s=> s.track && s.track.kind === 'audio') : null;
-            if(sender){
-              await sender.replaceTrack(newTrack);
-            }else if(rtc.pc){
-              try{ rtc.pc.addTrack(newTrack, newStream); }catch(e){}
+            for(const peer of rtc.peers.values()){
+              const sender = (peer.pc && peer.pc.getSenders) ? peer.pc.getSenders().find(s=> s.track && s.track.kind === 'audio') : null;
+              if(sender){
+                await sender.replaceTrack(newTrack);
+              }else if(peer.pc){
+                try{ peer.pc.addTrack(newTrack, newStream); }catch(e){}
+              }
             }
           }
           rtc.localStream = newStream;
           rtc.localTrack = newTrack;
           if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
           if(oldStream) oldStream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
+          renegotiateAllPeers();
           refreshDevices();
         }catch(err){
           appendChat('System', `Gagal ganti mic admin: ${err.message||err}`);
@@ -372,93 +588,34 @@
     });
   }
 
-  async function sendRtc(toPid, signalType, data){
-    if(!rtc.callId || !toPid) return;
+  async function sendRtc(toPid, signalType, data, callIdOverride){
+    if(!toPid) return;
+    const peer = rtc.peers.get(toPid);
+    const callId = callIdOverride || (peer ? peer.callId : '');
+    if(!callId) return;
     await post('/api/rtc/signal', {
       to_type: 'participant',
       to_participant_id: toPid,
       signal_type: signalType,
-      call_id: rtc.callId,
+      call_id: callId,
       data: JSON.stringify(data || {}),
     });
   }
 
-  function mkCallId(){
-    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+  async function renegotiatePeer(peer){
+    if(!peer || !peer.pc || !peer.callId) return;
+    if(peer.pc.signalingState && peer.pc.signalingState !== 'stable') return;
+    try{
+      const offer = await peer.pc.createOffer({ offerToReceiveAudio: true });
+      await peer.pc.setLocalDescription(offer);
+      await sendRtc(peer.pid, 'offer', { type: offer.type, sdp: offer.sdp }, peer.callId);
+    }catch(e){}
   }
 
-  async function startCall(pid){
-    const target = state.participants.get(pid);
-    if(!target){
-      appendChat('System', 'Peserta tidak ditemukan.');
-      return;
+  function renegotiateAllPeers(){
+    for(const peer of rtc.peers.values()){
+      renegotiatePeer(peer);
     }
-
-    // toggle off if clicking same target
-    if(rtc.pc && rtc.targetPid === pid){
-      await hangup(true);
-      return;
-    }
-
-    // close any existing call
-    if(rtc.pc){
-      await hangup(true);
-    }
-
-    rtc.targetPid = pid;
-    rtc.callId = mkCallId();
-    rtc.pendingCandidates = [];
-
-    setCallStatus(`Calling ${target.student_name}...`);
-    if(btnHangupCall) btnHangupCall.disabled = false;
-
-    const pc = new RTCPeerConnection(getRtcConfig());
-    rtc.pc = pc;
-
-    pc.onicecandidate = (ev)=>{
-      if(ev.candidate){
-        const cand = (ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
-        sendRtc(pid, 'candidate', { candidate: cand }).catch(()=>{});
-      }
-    };
-
-    pc.ontrack = (ev)=>{
-      const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : null;
-      if(stream && adminRemoteAudio){
-        adminRemoteAudio.srcObject = stream;
-        adminRemoteAudio.muted = false;
-        applySpeakerDevice();
-
-        // StartCall dipicu klik user, jadi play biasanya aman
-        adminRemoteAudio.play().catch(()=>{});
-      }
-    };
-
-    pc.onconnectionstatechange = ()=>{
-      if(!pc.connectionState) return;
-      setCallStatus(`RTC: ${pc.connectionState}`);
-      if(pc.connectionState === 'failed' || pc.connectionState === 'closed'){
-        hangup(false).catch(()=>{});
-      }
-    };
-
-    // Add local track (admin mic). If permission denied / not secure, still proceed receive-only.
-    try{
-      const ls = await ensureLocalStream();
-      ls.getTracks().forEach(t=>{ try{ pc.addTrack(t, ls); }catch(e){} });
-      applyAdminMic();
-      refreshDevices();
-    }catch(err){
-      appendChat('System', `Mic admin tidak bisa diakses (receive-only): ${err.message||err}`);
-    }
-
-    const offer = await pc.createOffer({ offerToReceiveAudio: true });
-    await pc.setLocalDescription(offer);
-
-    await sendRtc(pid, 'offer', { type: offer.type, sdp: offer.sdp });
-
-    scheduleRenderParticipants();
   }
 
   async function handleRtcSignal(payload){
@@ -467,42 +624,71 @@
     const fromPid = Number(payload.from_participant_id || 0);
     if(!fromPid) return;
 
-    // only accept signals for active call
-    if(!rtc.pc || rtc.targetPid !== fromPid) return;
-    if(payload.call_id !== rtc.callId) return;
-
     const st = payload.signal_type;
     const data = payload.data || {};
+    const callId = payload.call_id;
+
+    if(!callId) return;
 
     try{
-      if(st === 'answer'){
-        if(!data.sdp) return;
+      if(st === 'offer'){
+        const peer = getOrCreatePeer(fromPid, callId);
+        const pc = peer.pc;
 
-        await rtc.pc.setRemoteDescription(new RTCSessionDescription({
-          type: data.type || 'answer',
-          sdp: data.sdp
+        await pc.setRemoteDescription(new RTCSessionDescription({
+          type: data.type || 'offer',
+          sdp: data.sdp || ''
         }));
 
-        for(const c of rtc.pendingCandidates){
-          await rtc.pc.addIceCandidate(new RTCIceCandidate(c));
+        if(rtc.localStream && rtc.localStream.getTracks().length){
+          const hasSender = pc.getSenders && pc.getSenders().some(s=> s.track && s.track.kind === 'audio');
+          if(!hasSender){
+            rtc.localStream.getTracks().forEach(t=>{ try{ pc.addTrack(t, rtc.localStream); }catch(e){} });
+          }
+          if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
         }
-        rtc.pendingCandidates = [];
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendRtc(fromPid, 'answer', { type: answer.type, sdp: answer.sdp }, callId);
+
+        for(const c of peer.pendingCandidates){
+          await pc.addIceCandidate(new RTCIceCandidate(c));
+        }
+        peer.pendingCandidates = [];
+
+      } else if(st === 'answer'){
+        const peer = rtc.peers.get(fromPid);
+        if(!peer || peer.callId !== callId) return;
+        const pc = peer.pc;
+
+        await pc.setRemoteDescription(new RTCSessionDescription({
+          type: data.type || 'answer',
+          sdp: data.sdp || ''
+        }));
+
+        for(const c of peer.pendingCandidates){
+          await pc.addIceCandidate(new RTCIceCandidate(c));
+        }
+        peer.pendingCandidates = [];
 
       } else if(st === 'candidate'){
+        const peer = rtc.peers.get(fromPid);
+        if(!peer || peer.callId !== callId) return;
         const cand = data.candidate;
         if(!cand) return;
 
-        if(rtc.pc.remoteDescription && rtc.pc.remoteDescription.type){
-          await rtc.pc.addIceCandidate(new RTCIceCandidate(cand));
+        if(peer.pc.remoteDescription && peer.pc.remoteDescription.type){
+          await peer.pc.addIceCandidate(new RTCIceCandidate(cand));
         } else {
-          rtc.pendingCandidates.push(cand);
-          if(rtc.pendingCandidates.length > MAX_PENDING_CANDIDATES){
-            rtc.pendingCandidates = rtc.pendingCandidates.slice(-MAX_PENDING_CANDIDATES);
+          peer.pendingCandidates.push(cand);
+          if(peer.pendingCandidates.length > MAX_PENDING_CANDIDATES){
+            peer.pendingCandidates = peer.pendingCandidates.slice(-MAX_PENDING_CANDIDATES);
           }
         }
 
       } else if(st === 'hangup'){
-        await hangup(false);
+        closePeer(fromPid, false);
       }
     }catch(e){}
   }
@@ -515,10 +701,6 @@
     grid.innerHTML = arr.map(p=>{
       const online = state.presence.get(p.id) ? 'online' : 'offline';
       const device = p.device_label ? esc(p.device_label) : ('PC-' + p.id);
-
-      const inCall = (rtc.targetPid === p.id && !!rtc.pc);
-      const callLabel = inCall ? 'End Call' : 'Call';
-      const callClass = inCall ? 'danger' : '';
 
       return `
         <div class="pcard" data-pid="${p.id}">
@@ -535,7 +717,6 @@
           </div>
           <div class="row gap wrap" style="margin-top:8px">
             <button class="btnPrivate" type="button">Private chat</button>
-            <button class="btnCall ${callClass}" type="button" title="Voice">${callLabel}</button>
           </div>
         </div>`;
     }).join('');
@@ -616,13 +797,23 @@
         if(broadcastInput) broadcastInput.value = state.broadcastText;
       }
 
+      if(t === 'voice_lock_changed'){
+        if(p.allow_student_mic !== undefined){
+          state.allowStudentMic = !!p.allow_student_mic;
+        }
+        if(p.allow_student_speaker !== undefined){
+          state.allowStudentSpeaker = !!p.allow_student_speaker;
+        }
+        syncLockUI();
+      }
+
       if(t === 'material_changed'){
         refreshMaterial();
       }
 
       if(t === 'session_ended'){
         appendChat('System', 'Sesi ditutup.');
-        hangup(false).catch(()=>{});
+        hangupAll(false).catch(()=>{});
       }
 
       if(t === 'rtc_signal'){
@@ -642,6 +833,13 @@
     if(snap && snap.state){
       state.broadcastText = snap.state.broadcast_text || '';
       if(broadcastInput) broadcastInput.value = state.broadcastText;
+      if(snap.state.allow_student_mic !== undefined){
+        state.allowStudentMic = !!snap.state.allow_student_mic;
+      }
+      if(snap.state.allow_student_speaker !== undefined){
+        state.allowStudentSpeaker = !!snap.state.allow_student_speaker;
+      }
+      syncLockUI();
     }
 
     if(snap && snap.currentMaterial){
@@ -718,12 +916,6 @@
 
         appendChat('System', `Private target set to participant:${pid}`);
       }
-
-      if(ev.target.classList.contains('btnCall')){
-        startCall(pid).catch(err=>{
-          appendChat('System', `Call error: ${err.message||err}`);
-        });
-      }
     });
   }
 
@@ -796,13 +988,34 @@
     };
   }
 
+  async function saveVoiceLock(){
+    if(!chkAllowStudentMic && !chkAllowStudentSpk) return;
+    const payload = {
+      allow_student_mic: (chkAllowStudentMic && chkAllowStudentMic.checked) ? 1 : 0,
+      allow_student_speaker: (chkAllowStudentSpk && chkAllowStudentSpk.checked) ? 1 : 0,
+    };
+    const r = await post('/api/control/admin/voice-lock', payload);
+    if(r && r.ok){
+      if(r.allow_student_mic !== undefined) state.allowStudentMic = !!r.allow_student_mic;
+      if(r.allow_student_speaker !== undefined) state.allowStudentSpeaker = !!r.allow_student_speaker;
+      syncLockUI();
+    }else{
+      const msg = (r && r.error) ? r.error : 'Gagal menyimpan kontrol mic/speaker siswa.';
+      appendChat('System', msg);
+      syncLockUI();
+    }
+  }
+
+  if(chkAllowStudentMic) chkAllowStudentMic.addEventListener('change', saveVoiceLock);
+  if(chkAllowStudentSpk) chkAllowStudentSpk.addEventListener('change', saveVoiceLock);
+
   if(btnRefreshMaterial){
     btnRefreshMaterial.onclick = refreshMaterial;
   }
 
   // When leaving page, try to hangup cleanly (opsional tapi membantu)
   window.addEventListener('pagehide', ()=>{
-    sendBeaconHangup();
+    sendBeaconHangupAll();
   });
 
   // Start polling
@@ -820,7 +1033,10 @@
   poller.start();
 
   refreshMaterial();
-  setCallStatus('Idle');
+  updateVoiceStatus();
+  syncLockUI();
+  syncAdminSpkBtn();
+  applyAdminSpeakerState();
   refreshDevices();
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);

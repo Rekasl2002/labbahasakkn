@@ -27,6 +27,11 @@ class ControlApi extends BaseController
             return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
         }
 
+        $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
+        if ($state && array_key_exists('allow_student_mic', $state) && !(int)$state['allow_student_mic']) {
+            return $this->json(['ok' => false, 'error' => 'Mic dikunci admin.'], 403);
+        }
+
         $pm = new ParticipantModel();
 
         // Pastikan peserta benar-benar ada di session tsb (anti spoof / session mismatch)
@@ -49,6 +54,50 @@ class ControlApi extends BaseController
         ]);
 
         return $this->json(['ok' => true, 'mic_on' => $new]);
+    }
+
+    /**
+     * Student: toggle speaker diri sendiri (speaker_on).
+     * POST /api/control/speaker/toggle
+     */
+    public function toggleSpeaker()
+    {
+        if (strtoupper($this->request->getMethod()) !== 'POST') {
+            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+        }
+
+        $participantId = (int) session()->get('participant_id');
+        $sessionId = (int) session()->get('session_id');
+
+        if (!$participantId || !$sessionId) {
+            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
+        if ($state && array_key_exists('allow_student_speaker', $state) && !(int)$state['allow_student_speaker']) {
+            return $this->json(['ok' => false, 'error' => 'Speaker dikunci admin.'], 403);
+        }
+
+        $pm = new ParticipantModel();
+
+        $me = $pm->where('id', $participantId)
+                 ->where('session_id', $sessionId)
+                 ->first();
+
+        if (!$me) {
+            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+        }
+
+        $new = !empty($me['speaker_on']) ? 0 : 1;
+
+        $pm->update($participantId, ['speaker_on' => $new]);
+
+        (new EventModel())->addForAll($sessionId, 'speaker_changed', [
+            'participant_id' => $participantId,
+            'speaker_on' => $new,
+        ]);
+
+        return $this->json(['ok' => true, 'speaker_on' => $new]);
     }
 
     /**
@@ -252,6 +301,55 @@ class ControlApi extends BaseController
         ]);
 
         return $this->json(['ok' => true, 'broadcast_text' => $text]);
+    }
+
+    /**
+     * Admin: kunci/izinkan kontrol mic & speaker untuk siswa.
+     * POST /api/control/admin/voice-lock
+     */
+    public function adminSetVoiceLock()
+    {
+        if (strtoupper($this->request->getMethod()) !== 'POST') {
+            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+        }
+
+        if (!$this->isAdmin()) {
+            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $active = $this->getActiveSession();
+        if (!$active) {
+            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+        }
+
+        $allowMic = $this->request->getPost('allow_student_mic');
+        $allowSpk = $this->request->getPost('allow_student_speaker');
+
+        $data = [];
+        if ($allowMic !== null) $data['allow_student_mic'] = ((int) $allowMic) ? 1 : 0;
+        if ($allowSpk !== null) $data['allow_student_speaker'] = ((int) $allowSpk) ? 1 : 0;
+
+        if (!$data) {
+            return $this->json(['ok' => false, 'error' => 'No data'], 400);
+        }
+
+        $sessionId = (int) $active['id'];
+
+        try {
+            (new SessionStateModel())->setVoiceLocks($sessionId, $data);
+        } catch (\Throwable $e) {
+            return $this->json([
+                'ok' => false,
+                'error' => 'Gagal menyimpan kontrol mic/speaker. Pastikan migrasi terbaru sudah dijalankan.'
+            ], 500);
+        }
+
+        (new EventModel())->addForAll($sessionId, 'voice_lock_changed', [
+            'allow_student_mic' => $data['allow_student_mic'] ?? null,
+            'allow_student_speaker' => $data['allow_student_speaker'] ?? null,
+        ]);
+
+        return $this->json(['ok' => true] + $data);
     }
 
     /* =========================================================
