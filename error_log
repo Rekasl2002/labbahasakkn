@@ -1,0 +1,15 @@
+[01-Feb-2026 10:31:54 Asia/Jakarta] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'USER'@'localhost' (using password: YES) in Command line code:1
+Stack trace:
+#0 Command line code(1): mysqli->__construct()
+#1 {main}
+  thrown in Command line code on line 1
+[01-Feb-2026 10:32:04 Asia/Jakarta] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'USER'@'localhost' (using password: YES) in Command line code:1
+Stack trace:
+#0 Command line code(1): mysqli->__construct()
+#1 {main}
+  thrown in Command line code on line 1
+[01-Feb-2026 10:33:47 Asia/Jakarta] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'nagw8149_nagalight'@'localhost' to database 'nagw8149_labbahasa' in Command line code:1
+Stack trace:
+#0 Command line code(1): mysqli->__construct()
+#1 {main}
+  thrown in Command line code on line 1

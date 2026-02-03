@@ -1,0 +1,125 @@
+[01-Feb-2026 09:46:32 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:32 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:35 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:35 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:36 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:36 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:37 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:37 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:38 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:38 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:38 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:46:38 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:48:06 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:48:06 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:42 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:42 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:42 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:42 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:45 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:49:45 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:53:53 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:53:53 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:53:54 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:53:54 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:54:45 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:54:45 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:54:46 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:54:46 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:09 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:09 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:09 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:09 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:10 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:56:10 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:37 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:37 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:38 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:38 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:38 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:38 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:39 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:57:39 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:58:32 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:58:32 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:58:32 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 09:58:32 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 10:00:06 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 10:00:06 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 10:00:07 Asia/Jakarta] PHP Warning:  require(/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php): Failed to open stream: No such file or directory in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51
+[01-Feb-2026 10:00:07 Asia/Jakarta] PHP Fatal error:  Uncaught Error: Failed opening required '/home/nagw8149/public_html/nagalighttestncollegetask.my.id/../app/Config/Paths.php' (include_path='.:/opt/cpanel/ea-php83/root/usr/share/pear') in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/nagw8149/public_html/nagalighttestncollegetask.my.id/index.php on line 51

@@ -1,0 +1,24 @@
+CI_ENVIRONMENT = development
+
+app.baseURL = "https://nagalighttestncollegetask.my.id/"
+app.appName = "Lab Bahasa"
+app.indexPage = ""
+app.defaultLocale = id
+app.forceGlobalSecureRequests = true
+app.allowInsecureMedia = true
+app.CSPEnabled = false
+
+database.default.hostname = localhost
+database.default.database = nagw8149_labbahasa
+database.default.username = nagw8149_labbahasa
+database.default.password = "labbahasa123"
+database.default.DBDriver = MySQLi
+database.default.DBPrefix =
+database.default.port = 3306
+database.default.DBDebug = true
+database.default.charset = utf8mb4
+database.default.DBCollat = utf8mb4_general_ci
+
+encryption.key = 1034b8247e1889992670a8f5f11ed99ca984ebeeb39988be846bcf7cc9eb8bac
+
+logger.threshold = 4
