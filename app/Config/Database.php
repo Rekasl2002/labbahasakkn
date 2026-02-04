@@ -27,9 +27,9 @@ class Database extends Config
     public array $default = [
         'DSN'          => '',
         'hostname'     => 'localhost',
-        'username'     => 'nagw8149_labbahasa',
-        'password'     => 'labbahasa123',
-        'database'     => 'nagw8149_labbahasa',
+        'username'     => 'root',
+        'password'     => '',
+        'database'     => 'labbahasa',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,
@@ -199,6 +199,26 @@ class Database extends Config
         // we don't overwrite live data on accident.
         if (ENVIRONMENT === 'testing') {
             $this->defaultGroup = 'tests';
+        }
+
+        $this->applyDefaultEnv();
+    }
+
+    private function applyDefaultEnv(): void
+    {
+        $this->default['hostname'] = env('database.default.hostname', $this->default['hostname']);
+        $this->default['database'] = env('database.default.database', $this->default['database']);
+        $this->default['username'] = env('database.default.username', $this->default['username']);
+        $this->default['password'] = env('database.default.password', $this->default['password']);
+        $this->default['DBDriver'] = env('database.default.DBDriver', $this->default['DBDriver']);
+        $this->default['DBPrefix'] = env('database.default.DBPrefix', $this->default['DBPrefix']);
+        $this->default['DBDebug']  = env('database.default.DBDebug', $this->default['DBDebug']);
+        $this->default['charset']  = env('database.default.charset', $this->default['charset']);
+        $this->default['DBCollat'] = env('database.default.DBCollat', $this->default['DBCollat']);
+
+        $port = env('database.default.port', $this->default['port']);
+        if (is_numeric($port)) {
+            $this->default['port'] = (int) $port;
         }
     }
 }

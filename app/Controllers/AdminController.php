@@ -7,6 +7,7 @@ use App\Models\SessionStateModel;
 use App\Models\ParticipantModel;
 use App\Models\MessageModel;
 use App\Models\EventModel;
+use App\Models\AdminModel;
 
 class AdminController extends BaseController
 {
@@ -32,7 +33,93 @@ class AdminController extends BaseController
 
     public function settings()
     {
-        return view('admin/settings');
+        helper('settings');
+        $settings = lab_load_settings();
+
+        return view('admin/settings', [
+            'settings' => $settings,
+        ]);
+    }
+
+    public function saveSettings()
+    {
+        helper('settings');
+
+        $ipStart = $this->postString('ip_range_start', 60);
+        $ipEnd = $this->postString('ip_range_end', 60);
+        $labelFormat = $this->postString('label_format', 80);
+        $labelList = $this->postString('label_list', 3000);
+        $labelList = preg_replace("/\r\n?/", "\n", trim($labelList));
+
+        $errors = [];
+        if ($ipStart !== '' || $ipEnd !== '') {
+            if ($ipStart === '' || $ipEnd === '') {
+                $errors[] = 'IP awal dan IP akhir wajib diisi.';
+            }
+            if ($ipStart !== '' && filter_var($ipStart, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+                $errors[] = 'IP awal tidak valid.';
+            }
+            if ($ipEnd !== '' && filter_var($ipEnd, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+                $errors[] = 'IP akhir tidak valid.';
+            }
+        }
+
+        if ($labelFormat === '' && $labelList === '') {
+            $labelFormat = 'Komputer {n}';
+        }
+
+        if (!empty($errors)) {
+            return redirect()->back()->with('error', implode(' ', $errors));
+        }
+
+        $ok = lab_save_settings([
+            'ip_range_start' => $ipStart,
+            'ip_range_end' => $ipEnd,
+            'label_format' => $labelFormat,
+            'label_list' => $labelList,
+        ]);
+
+        if (!$ok) {
+            return redirect()->back()->with('error', 'Gagal menyimpan pengaturan.');
+        }
+
+        return redirect()->to('/admin/settings')->with('ok', 'Pengaturan disimpan.');
+    }
+
+    public function updatePassword()
+    {
+        $current = (string) $this->request->getPost('current_password');
+        $new = (string) $this->request->getPost('new_password');
+        $confirm = (string) $this->request->getPost('confirm_password');
+
+        if ($current === '' || $new === '' || $confirm === '') {
+            return redirect()->back()->with('error', 'Semua field password wajib diisi.');
+        }
+
+        if ($new !== $confirm) {
+            return redirect()->back()->with('error', 'Konfirmasi password tidak cocok.');
+        }
+
+        if (strlen($new) < 6) {
+            return redirect()->back()->with('error', 'Password baru minimal 6 karakter.');
+        }
+
+        $adminId = (int) session()->get('admin_id');
+        $admin = (new AdminModel())->find($adminId);
+        if (!$admin || !password_verify($current, $admin['password_hash'])) {
+            return redirect()->back()->with('error', 'Password sekarang salah.');
+        }
+
+        $hash = password_hash($new, PASSWORD_DEFAULT);
+        if (!$hash) {
+            return redirect()->back()->with('error', 'Gagal memproses password.');
+        }
+
+        (new AdminModel())->update($adminId, [
+            'password_hash' => $hash,
+        ]);
+
+        return redirect()->to('/admin/settings')->with('ok', 'Password admin berhasil diubah.');
     }
 
     public function startSession()

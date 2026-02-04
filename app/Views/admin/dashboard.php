@@ -1,5 +1,13 @@
+<?php $bodyClass = $activeSession ? 'has-sidebars' : ''; ?>
 <?= $this->extend('layout/main') ?>
 <?= $this->section('content') ?>
+
+<?php if ($activeSession): ?>
+  <?= view('layout/partials/sidebar_left', ['role' => 'admin', 'state' => $state]) ?>
+  <?= view('layout/partials/sidebar_right', ['role' => 'admin']) ?>
+<?php endif; ?>
+
+<div class="dashboard-center">
 
 <header class="pageHead">
   <div>
@@ -64,55 +72,14 @@
     <hr>
 
     <div class="row wrap gap" style="align-items:center">
-      <div class="row wrap gap" style="align-items:center">
-        <button id="btnMuteAllMic" type="button" class="danger">🔇 Mute Mic Semua</button>
-        <button id="btnUnmuteAllMic" type="button" class="ok">🎙️ Unmute Mic Semua</button>
-      </div>
-
-      <div class="row wrap gap" style="align-items:center">
-        <button id="btnMuteAllSpk" type="button" class="danger">🔈 Mute Speaker Semua</button>
-        <button id="btnUnmuteAllSpk" type="button" class="ok">🔊 Unmute Speaker Semua</button>
-      </div>
-
-      <div style="flex:1"></div>
-
       <a class="btn" href="/admin/materials">📚 Manajemen Materi</a>
     </div>
-
-    <div class="row gap wrap" style="margin-top:12px; align-items:center">
-      <label for="broadcastText" class="muted tiny" style="min-width:110px">Quick Broadcast</label>
-      <input
-        id="broadcastText"
-        placeholder="Kata/kalimat singkat untuk ditampilkan ke semua siswa..."
-        value="<?= esc($state['broadcast_text'] ?? '') ?>"
-        maxlength="255"
-        autocomplete="off"
-        style="flex:1;min-width:260px"
-      >
-      <button id="btnBroadcastText" type="button">📢 Broadcast</button>
-    </div>
-
-    <div class="row gap wrap" style="margin-top:10px; align-items:center">
-      <span class="muted tiny" style="min-width:110px">Kontrol Siswa</span>
-      <label class="row gap" style="align-items:center">
-        <input id="chkAllowStudentMic" type="checkbox">
-        <span class="tiny">Siswa boleh atur mic</span>
-      </label>
-      <label class="row gap" style="align-items:center">
-        <input id="chkAllowStudentSpk" type="checkbox">
-        <span class="tiny">Siswa boleh atur speaker</span>
-      </label>
-    </div>
-
-    <p class="muted tiny" style="margin:10px 0 0">
-      Broadcast ini untuk teks singkat. Voice realtime berjalan otomatis (voice room).
-    </p>
   <?php endif; ?>
 </div>
 
 <?php if ($activeSession): ?>
-  <div class="grid2" style="margin-top:14px">
-    <!-- LEFT: PARTICIPANTS + VOICE -->
+  <div style="margin-top:14px">
+    <!-- CENTER: PARTICIPANTS + VOICE -->
     <section class="card">
       <div class="row between wrap gap" style="align-items:flex-end">
         <div>
@@ -136,26 +103,11 @@
         </div>
 
         <div class="row gap wrap" style="align-items:center">
-          <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan audio pada browser">🔊 Aktifkan Audio</button>
-          <button id="btnAdminSpk" class="ok" type="button" title="Aktif/nonaktif speaker admin">🔊 Speaker Admin: ON</button>
-          <button id="btnAdminMic" class="ok" type="button" title="Aktif/nonaktif mic admin">🎙️ Mic Admin: ON</button>
           <button id="btnHangupCall" class="danger" type="button" disabled title="Putuskan semua koneksi voice">☎ Putuskan Semua</button>
         </div>
       </div>
 
-      <div class="row gap wrap" style="margin-top:10px; align-items:center">
-        <label class="muted tiny" for="selAdminMic" style="min-width:90px">Mic Admin</label>
-        <select id="selAdminMic" style="flex:1;min-width:220px"></select>
-
-        <label class="muted tiny" for="selAdminSpk" style="min-width:90px">Speaker Admin</label>
-        <select id="selAdminSpk" style="flex:1;min-width:220px"></select>
-      </div>
-
       <audio id="adminRemoteAudio" class="audioEl" playsinline></audio>
-      <div id="adminAudioIndicator" class="audioIndicator idle" aria-live="polite">
-        <span class="dot"></span>
-        <span class="text">Audio: standby</span>
-      </div>
 
       <div class="muted tiny" style="margin-top:8px">
         Jika audio tidak keluar: klik “Aktifkan Audio, pastikan “Speaker Admin” ON, dan izin audio di browser tidak diblok.
@@ -173,52 +125,6 @@
         Tips: jika peserta banyak, gunakan mute mic siswa untuk mengurangi beban audio di perangkat admin.
       </div>
     </section>
-
-    <!-- RIGHT: CHAT + MATERIAL -->
-    <section class="card">
-      <div class="row between wrap gap" style="align-items:flex-end">
-        <div>
-          <h2 style="margin:0">Chat</h2>
-          <div class="muted tiny" style="margin-top:4px">
-            Public untuk semua, Private untuk siswa tertentu.
-          </div>
-        </div>
-      </div>
-
-      <div class="row gap wrap" style="margin-top:10px; align-items:center">
-        <label class="muted tiny" for="chatMode" style="min-width:60px">Mode</label>
-        <select id="chatMode">
-          <option value="public">Public</option>
-          <option value="private_student">Private ke siswa terpilih</option>
-        </select>
-
-        <label class="muted tiny" for="privateTarget" style="min-width:86px">Target</label>
-        <select id="privateTarget" disabled></select>
-      </div>
-
-      <div id="chatLog" class="chatLog" style="margin-top:10px"></div>
-
-      <div class="row gap" style="margin-top:10px; align-items:center">
-        <input id="chatInput" placeholder="Ketik pesan..." style="flex:1" autocomplete="off">
-        <button id="btnSendChat" type="button">Kirim</button>
-      </div>
-
-      <div class="muted tiny" style="margin-top:8px">
-        Siswa juga bisa kirim private ke admin dari UI mereka.
-      </div>
-
-      <hr>
-
-      <div class="row between wrap gap" style="align-items:flex-end">
-        <div>
-          <h2 style="margin:0">Materi Aktif</h2>
-          <div class="muted tiny" style="margin-top:4px">Ditampilkan di halaman siswa.</div>
-        </div>
-        <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
-      </div>
-
-      <div id="currentMaterialBox" class="materialBox muted" style="margin-top:10px">Belum ada materi.</div>
-    </section>
   </div>
 
   <script>
@@ -230,5 +136,7 @@
   <script src="/assets/js/poll.js"></script>
   <script src="/assets/js/admin.js"></script>
 <?php endif; ?>
+
+</div>
 
 <?= $this->endSection() ?>

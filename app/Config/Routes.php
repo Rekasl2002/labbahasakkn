@@ -50,6 +50,8 @@ $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
     $routes->post('session/start', 'AdminController::startSession');
     $routes->post('session/end', 'AdminController::endSession');
     $routes->get('settings', 'AdminController::settings');
+    $routes->post('settings', 'AdminController::saveSettings');
+    $routes->post('settings/password', 'AdminController::updatePassword');
 
     // Materials management
     $routes->get('materials', 'MaterialController::index');

@@ -10,7 +10,16 @@
       <label>Kelas</label>
       <input name="class_name" required>
       <label>Nama komputer (opsional)</label>
-      <input name="device_label" placeholder="PC-01">
+      <input name="device_label" placeholder="PC-01" value="<?= esc($device_label ?? '') ?>">
+      <?php if (!empty($device_label ?? '')): ?>
+        <p class="muted tiny" style="margin:6px 0 0">
+          Terdeteksi IP <?= esc($client_ip ?? '-') ?>, otomatis diisi: <?= esc($device_label) ?>.
+        </p>
+      <?php else: ?>
+        <p class="muted tiny" style="margin:6px 0 0">
+          IP terdeteksi: <?= esc($client_ip ?? '-') ?>. Jika tidak otomatis, isi manual.
+        </p>
+      <?php endif; ?>
       <button type="submit">Gabung sesi</button>
     </form>
     <p class="muted">Jika belum ada sesi aktif, kamu akan masuk mode menunggu.</p>

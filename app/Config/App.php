@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'https://nagalighttestncollegetask.my.id/';
+    public string $baseURL = 'http://localhost/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
@@ -157,13 +157,13 @@ class App extends BaseConfig
      * secure, the user will be redirected to a secure version of the page
      * and the HTTP Strict Transport Security (HSTS) header will be set.
      */
-    public bool $forceGlobalSecureRequests = false;
+    public bool $forceGlobalSecureRequests = true;
 
     /**
      * Allow mic/speaker features to attempt running on insecure origins.
      * Note: browsers may still block media APIs on non-secure origins.
      */
-    public bool $allowInsecureMedia = false;
+    public bool $allowInsecureMedia = true;
 
     /**
      * --------------------------------------------------------------------------
@@ -210,8 +210,42 @@ class App extends BaseConfig
     {
         parent::__construct();
 
-        $this->baseURL = env('app.baseURL', $this->baseURL);
+        $envBaseURL = env('app.baseURL');
+        if (is_string($envBaseURL) && trim($envBaseURL) !== '') {
+            $this->baseURL = $envBaseURL;
+        } else {
+            $detectedBaseURL = $this->detectBaseURL();
+            if ($detectedBaseURL !== null) {
+                $this->baseURL = $detectedBaseURL;
+            }
+        }
+
         $this->forceGlobalSecureRequests = env('app.forceGlobalSecureRequests', $this->forceGlobalSecureRequests);
         $this->allowInsecureMedia = env('app.allowInsecureMedia', $this->allowInsecureMedia);
+    }
+
+    private function detectBaseURL(): ?string
+    {
+        if (PHP_SAPI === 'cli') {
+            return null;
+        }
+
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        if ($scriptName === '') {
+            return null;
+        }
+
+        $https  = $_SERVER['HTTPS'] ?? '';
+        $scheme = (! empty($https) && $https !== 'off') ? 'https' : 'http';
+
+        $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
+
+        $scriptName = str_replace('\\', '/', $scriptName);
+        $path       = rtrim(str_replace(basename($scriptName), '', $scriptName), '/');
+        $path       = $path === '' ? '/' : $path . '/';
+
+        $baseURL = $scheme . '://' . $host . $path;
+
+        return filter_var($baseURL, FILTER_VALIDATE_URL) !== false ? $baseURL : null;
     }
 }

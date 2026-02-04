@@ -6,7 +6,7 @@
   <title><?= esc($title ?? 'Lab Bahasa') ?></title>
   <link rel="stylesheet" href="/assets/css/app.css">
 </head>
-<body>
+<body class="<?= esc($bodyClass ?? '') ?>">
   <?= $this->include('layout/partials/topbar') ?>
   
   <main class="container">

@@ -50,7 +50,10 @@ class EventModel extends Model
             ->where('session_id', $sessionId)
             ->where('id >', $sinceId);
 
-        if (!$isAdmin) {
+        if ($isAdmin) {
+            // Admin cukup menerima event untuk semua & admin (hindari duplikasi dari audience participant)
+            $b->whereIn('audience', ['all', 'admin']);
+        } else {
             $audiences = ['all', 'participant:' . $participantId];
             $b->whereIn('audience', $audiences);
         }

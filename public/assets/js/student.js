@@ -479,7 +479,7 @@
             audioEl.play().catch(()=>{});
             setAudioStatus('Terhubung (audio aktif).');
           }else{
-            setAudioStatus('Ada audio masuk. Klik "Aktifkan Speaker" dulu.');
+            setAudioStatus('Ada audio masuk. Klik "Aktifkan Audio" dulu.');
           }
           syncAudioIndicator();
         }
@@ -742,7 +742,7 @@
         setAudioStatus('Speaker siap. (Jika ada audio masuk, bisa langsung terdengar.)');
       }
     }else{
-      setAudioStatus('Klik "Aktifkan Speaker" jika audio belum keluar.');
+      setAudioStatus('Klik "Aktifkan Audio" jika audio belum keluar.');
     }
     syncAudioIndicator();
   }

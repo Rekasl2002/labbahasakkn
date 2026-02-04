@@ -28,7 +28,15 @@ class AuthController extends BaseController
             return redirect()->to('/student');
         }
 
-        return view('auth/choose_role');
+        helper('settings');
+        $clientIp = (string) $this->request->getIPAddress();
+        $settings = lab_load_settings();
+        $deviceLabel = lab_device_label_for_ip($clientIp, $settings);
+
+        return view('auth/choose_role', [
+            'client_ip' => $clientIp,
+            'device_label' => $deviceLabel,
+        ]);
     }
 
     public function adminLogin()
@@ -66,6 +74,11 @@ class AuthController extends BaseController
         $studentName = trim((string) $this->request->getPost('student_name'));
         $className   = trim((string) $this->request->getPost('class_name'));
         $deviceLabel = trim((string) $this->request->getPost('device_label'));
+
+        if ($deviceLabel === '') {
+            helper('settings');
+            $deviceLabel = lab_device_label_for_ip((string) $this->request->getIPAddress());
+        }
 
         if ($studentName === '' || $className === '') {
             return redirect()->back()->with('error', 'Nama & kelas wajib.');
