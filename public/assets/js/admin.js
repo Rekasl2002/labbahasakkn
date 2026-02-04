@@ -14,6 +14,8 @@
     selectedMicId: '',
     selectedSpkId: '',
     devicePermissionAsked: false,
+    autoInitDone: false,
+    devices: { inputs: [], outputs: [] },
     audioUnlocked: false,
     allowStudentMic: true,
     allowStudentSpeaker: true,
@@ -42,6 +44,7 @@
   const adminRemoteAudio = document.getElementById('adminRemoteAudio');
   const selAdminMic = document.getElementById('selAdminMic');
   const selAdminSpk = document.getElementById('selAdminSpk');
+  const adminAudioIndicator = document.getElementById('adminAudioIndicator');
 
   const audioPool = (function(){
     const existing = document.getElementById('adminAudioPool');
@@ -70,6 +73,8 @@
   const STORAGE = {
     mic: 'lab_admin_mic_id',
     spk: 'lab_admin_spk_id',
+    micLabel: 'lab_admin_mic_label',
+    spkLabel: 'lab_admin_spk_label',
   };
 
   let _renderScheduled = false;
@@ -79,6 +84,43 @@
 
   function setCallStatus(text){
     if(callStatusEl) callStatusEl.textContent = text || '';
+  }
+
+  function setAudioIndicator(kind, text){
+    if(!adminAudioIndicator) return;
+    adminAudioIndicator.classList.toggle('active', kind === 'active');
+    adminAudioIndicator.classList.toggle('off', kind === 'off');
+    adminAudioIndicator.classList.toggle('idle', kind === 'idle');
+    const textEl = adminAudioIndicator.querySelector('.text');
+    if(textEl) textEl.textContent = text || '';
+  }
+
+  function hasAnyAudioStream(){
+    if(adminRemoteAudio && adminRemoteAudio.srcObject) return true;
+    if(audioPool){
+      const items = audioPool.querySelectorAll('audio');
+      for(const a of items){
+        if(a && a.srcObject) return true;
+      }
+    }
+    return false;
+  }
+
+  function syncAudioIndicator(){
+    if(!adminAudioIndicator) return;
+    if(!hasAnyAudioStream()){
+      setAudioIndicator('idle', 'Audio: standby');
+      return;
+    }
+    if(!state.adminSpeakerOn){
+      setAudioIndicator('off', 'Audio: dimute');
+      return;
+    }
+    if(state.audioUnlocked){
+      setAudioIndicator('active', 'Audio: aktif');
+    }else{
+      setAudioIndicator('off', 'Audio: perlu izin');
+    }
   }
 
   function syncLockUI(){
@@ -96,12 +138,28 @@
     }catch(e){}
   }
 
+  function saveLabel(key, value){
+    const v = (value || '').toString().trim();
+    if(v) save(key, v);
+  }
+
+  function findByLabel(list, label){
+    const target = (label || '').toString().trim().toLowerCase();
+    if(!target) return null;
+    return list.find(d=> (d && d.label ? d.label.toLowerCase() : '') === target) || null;
+  }
+
   function labelForDevice(d, idx){
     const name = (d && d.label) ? d.label : '';
     if(name) return name;
     if(d.kind === 'audioinput') return `Microphone ${idx+1}`;
     if(d.kind === 'audiooutput') return `Speaker ${idx+1}`;
     return `Device ${idx+1}`;
+  }
+
+  function pidOf(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
   }
 
   function applySpeakerDevice(){
@@ -120,9 +178,8 @@
     }
   }
 
-  async function unlockAdminAudio(){
-    state.audioUnlocked = true;
-    if(btnEnableAdminAudio) btnEnableAdminAudio.classList.add('ok');
+  async function unlockAdminAudio(auto){
+    let ok = true;
 
     if(!state.devicePermissionAsked){
       await requestDeviceAccess();
@@ -133,21 +190,35 @@
       if(AC){
         const ctx = new AC();
         await ctx.resume().catch(()=>{});
+        if(ctx.state !== 'running') ok = false;
       }
-    }catch(e){}
+    }catch(e){
+      ok = false;
+    }
 
     if(state.adminSpeakerOn && adminRemoteAudio && adminRemoteAudio.srcObject){
-      adminRemoteAudio.play().catch(()=>{});
+      try{
+        await adminRemoteAudio.play();
+      }catch(e){
+        ok = false;
+      }
     }
     if(audioPool){
-      audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{}));
+      audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{ ok = false; }));
     }
 
+    state.audioUnlocked = ok;
+    if(btnEnableAdminAudio) btnEnableAdminAudio.classList.toggle('ok', ok);
+    if(!ok && auto){
+      setCallStatus('Klik "Aktifkan Speaker" jika audio belum keluar.');
+    }
+
+    syncAudioIndicator();
     updateVoiceStatus();
   }
 
   if(btnEnableAdminAudio){
-    btnEnableAdminAudio.addEventListener('click', unlockAdminAudio);
+    btnEnableAdminAudio.addEventListener('click', ()=> unlockAdminAudio(false));
   }
 
   async function refreshDevices(){
@@ -172,6 +243,8 @@
 
     const inputs = devices.filter(d=> d.kind === 'audioinput');
     const outputs = devices.filter(d=> d.kind === 'audiooutput');
+    state.devices.inputs = inputs;
+    state.devices.outputs = outputs;
 
     const needPermissionHint = !state.devicePermissionAsked;
     if(selAdminMic){
@@ -198,24 +271,42 @@
 
     if(selAdminMic){
       const savedMic = state.selectedMicId || getSaved(STORAGE.mic);
+      const savedMicLabel = getSaved(STORAGE.micLabel);
       if(savedMic && inputs.some(d=> d.deviceId === savedMic)){
         selAdminMic.value = savedMic;
         state.selectedMicId = savedMic;
-      }else if(inputs[0]){
-        selAdminMic.value = inputs[0].deviceId;
-        state.selectedMicId = inputs[0].deviceId;
+      }else{
+        const byLabel = findByLabel(inputs, savedMicLabel);
+        if(byLabel){
+          selAdminMic.value = byLabel.deviceId;
+          state.selectedMicId = byLabel.deviceId;
+        }else if(inputs[0]){
+          selAdminMic.value = inputs[0].deviceId;
+          state.selectedMicId = inputs[0].deviceId;
+        }
       }
+      const picked = inputs.find(d=> d.deviceId === state.selectedMicId);
+      if(picked && picked.label) saveLabel(STORAGE.micLabel, picked.label);
     }
 
     if(selAdminSpk){
       const savedSpk = state.selectedSpkId || getSaved(STORAGE.spk);
+      const savedSpkLabel = getSaved(STORAGE.spkLabel);
       if(savedSpk && outputs.some(d=> d.deviceId === savedSpk)){
         selAdminSpk.value = savedSpk;
         state.selectedSpkId = savedSpk;
-      }else if(outputs[0] && !selAdminSpk.disabled){
-        selAdminSpk.value = outputs[0].deviceId;
-        state.selectedSpkId = outputs[0].deviceId;
+      }else{
+        const byLabel = findByLabel(outputs, savedSpkLabel);
+        if(byLabel){
+          selAdminSpk.value = byLabel.deviceId;
+          state.selectedSpkId = byLabel.deviceId;
+        }else if(outputs[0] && !selAdminSpk.disabled){
+          selAdminSpk.value = outputs[0].deviceId;
+          state.selectedSpkId = outputs[0].deviceId;
+        }
       }
+      const picked = outputs.find(d=> d.deviceId === state.selectedSpkId);
+      if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
     }
 
     applySpeakerDevice();
@@ -338,6 +429,7 @@
           }else{
             setCallStatus('Ada audio masuk. Klik "Aktifkan Speaker".');
           }
+          syncAudioIndicator();
         }
       }
     };
@@ -417,6 +509,7 @@
 
     rtc.peers.delete(pid);
     updateVoiceStatus();
+    syncAudioIndicator();
   }
 
   function closeAllPeers(sendSignal){
@@ -467,6 +560,7 @@
     rtc.primaryAudioPid = null;
     if(!rtc.micOn) stopLocalStream();
     updateVoiceStatus();
+    syncAudioIndicator();
     scheduleRenderParticipants();
   }
 
@@ -495,6 +589,7 @@
     if(state.adminSpeakerOn && state.audioUnlocked && adminRemoteAudio && adminRemoteAudio.srcObject){
       adminRemoteAudio.play().catch(()=>{});
     }
+    syncAudioIndicator();
   }
 
   function applyAdminMic(){
@@ -549,6 +644,8 @@
     selAdminMic.addEventListener('change', async ()=>{
       state.selectedMicId = selAdminMic.value || '';
       save(STORAGE.mic, state.selectedMicId);
+      const picked = state.devices.inputs.find(d=> d.deviceId === state.selectedMicId);
+      if(picked && picked.label) saveLabel(STORAGE.micLabel, picked.label);
       if(rtc.localStream || rtc.peers.size){
         try{
           const oldStream = rtc.localStream;
@@ -584,6 +681,8 @@
     selAdminSpk.addEventListener('change', ()=>{
       state.selectedSpkId = selAdminSpk.value || '';
       save(STORAGE.spk, state.selectedSpkId);
+      const picked = state.devices.outputs.find(d=> d.deviceId === state.selectedSpkId);
+      if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
       applySpeakerDevice();
     });
   }
@@ -748,8 +847,11 @@
       const p = e.payload || {};
 
       if(t === 'participant_joined'){
-        state.participants.set(p.participant_id, {
-          id: p.participant_id,
+        const pid = pidOf(p.participant_id || p.id);
+        if(!pid) continue;
+        state.participants.delete(String(pid));
+        state.participants.set(pid, {
+          id: pid,
           student_name: p.student_name,
           class_name: p.class_name,
           device_label: p.device_label,
@@ -761,12 +863,12 @@
       }
 
       if(t === 'mic_changed'){
-        const x = state.participants.get(p.participant_id);
+        const x = state.participants.get(pidOf(p.participant_id));
         if(x){ x.mic_on = p.mic_on ? 1 : 0; scheduleRenderParticipants(); }
       }
 
       if(t === 'speaker_changed'){
-        const x = state.participants.get(p.participant_id);
+        const x = state.participants.get(pidOf(p.participant_id));
         if(x){ x.speaker_on = p.speaker_on ? 1 : 0; scheduleRenderParticipants(); }
       }
 
@@ -824,8 +926,12 @@
 
   function handleSnapshot(snap){
     if(snap && Array.isArray(snap.participants)){
+      state.participants.clear();
       for(const p of snap.participants){
-        state.participants.set(p.id, p);
+        const pid = pidOf(p.id);
+        if(!pid) continue;
+        p.id = pid;
+        state.participants.set(pid, p);
       }
       scheduleRenderParticipants();
     }
@@ -850,9 +956,37 @@
   function handlePresence(list){
     state.presence.clear();
     for(const it of list){
-      state.presence.set(it.id, !!it.online);
+      const pid = pidOf(it.id);
+      if(!pid) continue;
+      state.presence.set(pid, !!it.online);
     }
     scheduleRenderParticipants();
+  }
+
+  async function autoInitAudio(){
+    if(state.autoInitDone) return;
+    state.autoInitDone = true;
+
+    if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
+      return;
+    }
+
+    try{
+      await requestDeviceAccess();
+      await refreshDevices();
+    }catch(e){}
+
+    if(rtc.micOn){
+      try{
+        await ensureLocalStream();
+      }catch(err){
+        appendChat('System', `Mic admin belum bisa diakses otomatis: ${err.message||err}`);
+      }
+    }
+
+    try{
+      await unlockAdminAudio(true);
+    }catch(e){}
   }
 
   function renderMaterialBox(cm){
@@ -1038,6 +1172,7 @@
   syncAdminSpkBtn();
   applyAdminSpeakerState();
   refreshDevices();
+  setTimeout(()=>{ autoInitAudio().catch(()=>{}); }, 300);
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
   }

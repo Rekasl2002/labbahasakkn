@@ -12,11 +12,28 @@ class AuthController extends BaseController
 {
     public function chooseRole()
     {
+        if (session()->get('admin_id')) {
+            return redirect()->to('/admin');
+        }
+
+        if (session()->get('participant_id') && session()->get('session_id')) {
+            return redirect()->to('/student');
+        }
+
+        helper('remember');
+        if (lab_restore_admin_from_cookie($this->request)) {
+            return redirect()->to('/admin');
+        }
+        if (lab_restore_participant_from_cookie($this->request)) {
+            return redirect()->to('/student');
+        }
+
         return view('auth/choose_role');
     }
 
     public function adminLogin()
     {
+        helper('remember');
         $username = trim((string) $this->request->getPost('username'));
         $password = (string) $this->request->getPost('password');
 
@@ -34,11 +51,18 @@ class AuthController extends BaseController
             'admin_username' => $admin['username'],
         ]);
 
+        $this->response->setCookie(
+            LAB_COOKIE_ADMIN,
+            lab_remember_pack((string) $admin['id']),
+            lab_remember_expire_seconds()
+        );
+
         return redirect()->to('/admin');
     }
 
     public function studentLogin()
     {
+        helper('remember');
         $studentName = trim((string) $this->request->getPost('student_name'));
         $className   = trim((string) $this->request->getPost('class_name'));
         $deviceLabel = trim((string) $this->request->getPost('device_label'));
@@ -50,6 +74,17 @@ class AuthController extends BaseController
         $sessionModel = new SessionModel();
         $active = $sessionModel->where('is_active', 1)->orderBy('id', 'DESC')->first();
 
+        $deviceKeyToken = (string) $this->request->getCookie(LAB_COOKIE_DEVICE);
+        $deviceKey = (string) (lab_remember_unpack($deviceKeyToken) ?? '');
+        if ($deviceKey === '') {
+            $deviceKey = lab_generate_device_key();
+            $this->response->setCookie(
+                LAB_COOKIE_DEVICE,
+                lab_remember_pack($deviceKey),
+                lab_remember_expire_seconds()
+            );
+        }
+
         if (!$active) {
             return view('auth/waiting_session', [
                 'student_name' => $studentName,
@@ -59,17 +94,59 @@ class AuthController extends BaseController
         }
 
         $participantModel = new ParticipantModel();
-        $participantId = $participantModel->insert([
-            'session_id'    => $active['id'],
-            'student_name'  => $studentName,
-            'class_name'    => $className,
-            'device_label'  => $deviceLabel ?: null,
-            'ip_address'    => $this->request->getIPAddress(),
-            'mic_on'        => 0,
-            'speaker_on'    => 1,
-            'joined_at'     => date('Y-m-d H:i:s'),
-            'last_seen_at'  => date('Y-m-d H:i:s'),
-        ], true);
+        $participantId = 0;
+        $existing = null;
+
+        $pidToken = (string) $this->request->getCookie(LAB_COOKIE_PARTICIPANT);
+        $pidFromCookie = (int) (lab_remember_unpack($pidToken) ?? 0);
+
+        if ($pidFromCookie > 0) {
+            $existing = $participantModel
+                ->where('id', $pidFromCookie)
+                ->where('session_id', $active['id'])
+                ->first();
+
+            if ($existing) {
+                $sameName = strcasecmp((string) ($existing['student_name'] ?? ''), $studentName) === 0;
+                $sameClass = strcasecmp((string) ($existing['class_name'] ?? ''), $className) === 0;
+                if (!$sameName || !$sameClass) {
+                    $existing = null;
+                }
+            }
+        }
+
+        if (!$existing && $deviceKey !== '') {
+            $existing = $participantModel
+                ->where('session_id', $active['id'])
+                ->where('student_name', $studentName)
+                ->where('class_name', $className)
+                ->where('device_key', $deviceKey)
+                ->first();
+        }
+
+        if ($existing) {
+            $participantId = (int) $existing['id'];
+            $participantModel->update($participantId, [
+                'device_label' => $deviceLabel !== '' ? $deviceLabel : ($existing['device_label'] ?? null),
+                'device_key' => $deviceKey !== '' ? $deviceKey : ($existing['device_key'] ?? null),
+                'ip_address' => $this->request->getIPAddress(),
+                'last_seen_at' => date('Y-m-d H:i:s'),
+                'left_at' => null,
+            ]);
+        } else {
+            $participantId = $participantModel->insert([
+                'session_id'    => $active['id'],
+                'student_name'  => $studentName,
+                'class_name'    => $className,
+                'device_label'  => $deviceLabel ?: null,
+                'device_key'    => $deviceKey ?: null,
+                'ip_address'    => $this->request->getIPAddress(),
+                'mic_on'        => 0,
+                'speaker_on'    => 1,
+                'joined_at'     => date('Y-m-d H:i:s'),
+                'last_seen_at'  => date('Y-m-d H:i:s'),
+            ], true);
+        }
 
         session()->set([
             'session_id' => $active['id'],
@@ -78,15 +155,23 @@ class AuthController extends BaseController
             'class_name' => $className,
         ]);
 
-        (new EventModel())->addForAll($active['id'], 'participant_joined', [
-            'participant_id' => $participantId,
-            'student_name' => $studentName,
-            'class_name' => $className,
-            'device_label' => $deviceLabel,
-            'ip_address' => $this->request->getIPAddress(),
-            'mic_on' => 0,
-            'speaker_on' => 1,
-        ]);
+        $this->response->setCookie(
+            LAB_COOKIE_PARTICIPANT,
+            lab_remember_pack((string) $participantId),
+            lab_remember_expire_seconds()
+        );
+
+        if (!$existing) {
+            (new EventModel())->addForAll($active['id'], 'participant_joined', [
+                'participant_id' => $participantId,
+                'student_name' => $studentName,
+                'class_name' => $className,
+                'device_label' => $deviceLabel,
+                'ip_address' => $this->request->getIPAddress(),
+                'mic_on' => 0,
+                'speaker_on' => 1,
+            ]);
+        }
 
         // Pastikan session_state ada
         (new SessionStateModel())->ensureRow($active['id']);
@@ -96,7 +181,10 @@ class AuthController extends BaseController
 
     public function logout()
     {
+        helper('remember');
         session()->destroy();
+        $this->response->deleteCookie(LAB_COOKIE_ADMIN);
+        $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
         return redirect()->to('/');
     }
 }

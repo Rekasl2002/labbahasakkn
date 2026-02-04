@@ -12,6 +12,10 @@ class StudentAuth implements FilterInterface
     {
         $session = session();
         if (!$session->get('participant_id') || !$session->get('session_id')) {
+            helper('remember');
+            if (lab_restore_participant_from_cookie($request)) {
+                return;
+            }
             return redirect()->to('/login');
         }
     }

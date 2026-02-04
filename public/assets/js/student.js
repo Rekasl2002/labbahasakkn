@@ -15,6 +15,7 @@
   // Voice UI
   const btnEnableAudio = document.getElementById('btnEnableAudio');
   const audioStatusEl = document.getElementById('audioStatus');
+  const audioIndicatorEl = document.getElementById('studentAudioIndicator');
   const remoteAudio = document.getElementById('remoteAudio');
   const selMic = document.getElementById('selMic');
   const selSpk = document.getElementById('selSpk');
@@ -38,6 +39,8 @@
     selectedMicId: '',
     selectedSpkId: '',
     devicePermissionAsked: false,
+    autoInitDone: false,
+    devices: { inputs: [], outputs: [] },
   };
 
   const rtc = {
@@ -54,7 +57,11 @@
   const STORAGE = {
     mic: 'lab_student_mic_id',
     spk: 'lab_student_spk_id',
+    micLabel: 'lab_student_mic_label',
+    spkLabel: 'lab_student_spk_label',
   };
+
+  const ALWAYS_JOIN_VOICE = true;
 
   let voiceCheckTimer = null;
 
@@ -64,7 +71,7 @@
   }
 
   function wantVoice(){
-    return !!(state.mySpeakerOn || state.myMicOn);
+    return ALWAYS_JOIN_VOICE || !!(state.mySpeakerOn || state.myMicOn);
   }
 
   function scheduleVoiceCheck(delayMs){
@@ -85,6 +92,43 @@
     if(audioStatusEl) audioStatusEl.textContent = text || '';
   }
 
+  function setAudioIndicator(kind, text){
+    if(!audioIndicatorEl) return;
+    audioIndicatorEl.classList.toggle('active', kind === 'active');
+    audioIndicatorEl.classList.toggle('off', kind === 'off');
+    audioIndicatorEl.classList.toggle('idle', kind === 'idle');
+    const textEl = audioIndicatorEl.querySelector('.text');
+    if(textEl) textEl.textContent = text || '';
+  }
+
+  function hasAnyAudioStream(){
+    if(remoteAudio && remoteAudio.srcObject) return true;
+    if(audioPool){
+      const items = audioPool.querySelectorAll('audio');
+      for(const a of items){
+        if(a && a.srcObject) return true;
+      }
+    }
+    return false;
+  }
+
+  function syncAudioIndicator(){
+    if(!audioIndicatorEl) return;
+    if(!hasAnyAudioStream()){
+      setAudioIndicator('idle', 'Audio: standby');
+      return;
+    }
+    if(!state.mySpeakerOn){
+      setAudioIndicator('off', 'Audio: dimute');
+      return;
+    }
+    if(state.audioUnlocked){
+      setAudioIndicator('active', 'Audio: aktif');
+    }else{
+      setAudioIndicator('off', 'Audio: perlu izin');
+    }
+  }
+
   function getSaved(key){
     try{ return localStorage.getItem(key) || ''; }catch(e){ return ''; }
   }
@@ -93,6 +137,17 @@
       if(value) localStorage.setItem(key, value);
       else localStorage.removeItem(key);
     }catch(e){}
+  }
+
+  function saveLabel(key, value){
+    const v = (value || '').toString().trim();
+    if(v) save(key, v);
+  }
+
+  function findByLabel(list, label){
+    const target = (label || '').toString().trim().toLowerCase();
+    if(!target) return null;
+    return list.find(d=> (d && d.label ? d.label.toLowerCase() : '') === target) || null;
   }
 
   function labelForDevice(d, idx){
@@ -141,6 +196,8 @@
 
     const inputs = devices.filter(d=> d.kind === 'audioinput');
     const outputs = devices.filter(d=> d.kind === 'audiooutput');
+    state.devices.inputs = inputs;
+    state.devices.outputs = outputs;
 
     const needPermissionHint = !state.devicePermissionAsked;
     if(selMic){
@@ -167,24 +224,42 @@
 
     if(selMic){
       const savedMic = state.selectedMicId || getSaved(STORAGE.mic);
+      const savedMicLabel = getSaved(STORAGE.micLabel);
       if(savedMic && inputs.some(d=> d.deviceId === savedMic)){
         selMic.value = savedMic;
         state.selectedMicId = savedMic;
-      }else if(inputs[0]){
-        selMic.value = inputs[0].deviceId;
-        state.selectedMicId = inputs[0].deviceId;
+      }else{
+        const byLabel = findByLabel(inputs, savedMicLabel);
+        if(byLabel){
+          selMic.value = byLabel.deviceId;
+          state.selectedMicId = byLabel.deviceId;
+        }else if(inputs[0]){
+          selMic.value = inputs[0].deviceId;
+          state.selectedMicId = inputs[0].deviceId;
+        }
       }
+      const picked = inputs.find(d=> d.deviceId === state.selectedMicId);
+      if(picked && picked.label) saveLabel(STORAGE.micLabel, picked.label);
     }
 
     if(selSpk){
       const savedSpk = state.selectedSpkId || getSaved(STORAGE.spk);
+      const savedSpkLabel = getSaved(STORAGE.spkLabel);
       if(savedSpk && outputs.some(d=> d.deviceId === savedSpk)){
         selSpk.value = savedSpk;
         state.selectedSpkId = savedSpk;
-      }else if(outputs[0] && !selSpk.disabled){
-        selSpk.value = outputs[0].deviceId;
-        state.selectedSpkId = outputs[0].deviceId;
+      }else{
+        const byLabel = findByLabel(outputs, savedSpkLabel);
+        if(byLabel){
+          selSpk.value = byLabel.deviceId;
+          state.selectedSpkId = byLabel.deviceId;
+        }else if(outputs[0] && !selSpk.disabled){
+          selSpk.value = outputs[0].deviceId;
+          state.selectedSpkId = outputs[0].deviceId;
+        }
       }
+      const picked = outputs.find(d=> d.deviceId === state.selectedSpkId);
+      if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
     }
 
     applySpeakerDevice();
@@ -230,6 +305,7 @@
       audioPool.querySelectorAll('audio').forEach(a=>{ a.muted = !state.mySpeakerOn; });
     }
     applySpeakerDevice();
+    syncAudioIndicator();
   }
 
   function stopLocalStream(){
@@ -405,6 +481,7 @@
           }else{
             setAudioStatus('Ada audio masuk. Klik "Aktifkan Speaker" dulu.');
           }
+          syncAudioIndicator();
         }
       }
     };
@@ -467,6 +544,7 @@
     }
 
     rtc.peers.delete(key);
+    syncAudioIndicator();
   }
 
   function closeAllPeers(sendSignal){
@@ -476,6 +554,7 @@
     if(!state.myMicOn){
       stopLocalStream();
     }
+    syncAudioIndicator();
   }
 
   async function startOfferToAdmin(){
@@ -517,7 +596,6 @@
     // Participant mesh: hanya offerer (ID lebih kecil) yang start
     for(const p of state.peers.values()){
       if(!p || p.id === myId) continue;
-      if(!(p.mic_on || p.speaker_on)) continue;
       if(!isOfferer(p.id)) continue;
 
       const key = peerKeyParticipant(p.id);
@@ -625,9 +703,8 @@
     }catch(e){}
   }
 
-  async function unlockAudio(){
-    state.audioUnlocked = true;
-    if(btnEnableAudio) btnEnableAudio.classList.add('ok');
+  async function unlockAudio(auto){
+    let ok = true;
 
     if(!state.devicePermissionAsked){
       await requestDeviceAccess();
@@ -638,23 +715,40 @@
       if(AC){
         const ctx = new AC();
         await ctx.resume().catch(()=>{});
+        if(ctx.state !== 'running') ok = false;
       }
-    }catch(e){}
+    }catch(e){
+      ok = false;
+    }
 
     if(remoteAudio && remoteAudio.srcObject && state.mySpeakerOn){
-      remoteAudio.play().catch(()=>{});
-      setAudioStatus('Speaker aktif.');
-    }else{
-      setAudioStatus('Speaker siap. (Jika ada audio masuk, bisa langsung terdengar.)');
+      try{
+        await remoteAudio.play();
+      }catch(e){
+        ok = false;
+      }
     }
     if(audioPool){
-      audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{}));
+      audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{ ok = false; }));
     }
     applySpeakerDevice();
+
+    state.audioUnlocked = ok;
+    if(btnEnableAudio) btnEnableAudio.classList.toggle('ok', ok);
+    if(ok){
+      if(remoteAudio && remoteAudio.srcObject && state.mySpeakerOn){
+        setAudioStatus('Speaker aktif.');
+      }else{
+        setAudioStatus('Speaker siap. (Jika ada audio masuk, bisa langsung terdengar.)');
+      }
+    }else{
+      setAudioStatus('Klik "Aktifkan Speaker" jika audio belum keluar.');
+    }
+    syncAudioIndicator();
   }
 
   if(btnEnableAudio){
-    btnEnableAudio.addEventListener('click', unlockAudio);
+    btnEnableAudio.addEventListener('click', ()=> unlockAudio(false));
   }
 
   if(selMic){
@@ -664,6 +758,8 @@
     selMic.addEventListener('change', async ()=>{
       state.selectedMicId = selMic.value || '';
       save(STORAGE.mic, state.selectedMicId);
+      const picked = state.devices.inputs.find(d=> d.deviceId === state.selectedMicId);
+      if(picked && picked.label) saveLabel(STORAGE.micLabel, picked.label);
       if(state.myMicOn){
         try{
           const oldStream = rtc.localStream;
@@ -699,6 +795,8 @@
     selSpk.addEventListener('change', ()=>{
       state.selectedSpkId = selSpk.value || '';
       save(STORAGE.spk, state.selectedSpkId);
+      const picked = state.devices.outputs.find(d=> d.deviceId === state.selectedSpkId);
+      if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
       applySpeakerDevice();
     });
   }
@@ -792,6 +890,7 @@
       }
       renderPeers();
       scheduleVoiceCheck(300);
+      autoInitAudio(true).catch(()=>{});
     }
 
     if(snap && snap.state && broadcastBox){
@@ -811,6 +910,35 @@
 
     if(snap && snap.currentMaterial){
       renderMaterial(snap.currentMaterial);
+    }
+  }
+
+  async function autoInitAudio(forceMic){
+    if(!state.autoInitDone){
+      state.autoInitDone = true;
+
+      if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
+        return;
+      }
+
+      try{
+        await requestDeviceAccess();
+        await refreshDevices();
+      }catch(e){}
+
+      try{
+        await unlockAudio(true);
+      }catch(e){}
+    }
+
+    if(forceMic && state.myMicOn){
+      try{
+        await ensureMicStreamFromUserGesture();
+        applyMicState();
+        attachLocalTrackToAllPeers();
+      }catch(err){
+        setAudioStatus('Mic ON tapi izin gagal: ' + (err.message||err));
+      }
     }
   }
 
@@ -1012,6 +1140,7 @@
   syncMicBtn();
   syncSpkBtn();
   refreshDevices();
+  setTimeout(()=>{ autoInitAudio(false).catch(()=>{}); }, 300);
   scheduleVoiceCheck(400);
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);

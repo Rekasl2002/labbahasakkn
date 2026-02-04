@@ -136,7 +136,7 @@
         </div>
 
         <div class="row gap wrap" style="align-items:center">
-          <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan output audio browser">🔊 Aktifkan Speaker</button>
+          <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan audio pada browser">🔊 Aktifkan Audio</button>
           <button id="btnAdminSpk" class="ok" type="button" title="Aktif/nonaktif speaker admin">🔊 Speaker Admin: ON</button>
           <button id="btnAdminMic" class="ok" type="button" title="Aktif/nonaktif mic admin">🎙️ Mic Admin: ON</button>
           <button id="btnHangupCall" class="danger" type="button" disabled title="Putuskan semua koneksi voice">☎ Putuskan Semua</button>
@@ -151,10 +151,14 @@
         <select id="selAdminSpk" style="flex:1;min-width:220px"></select>
       </div>
 
-      <audio id="adminRemoteAudio" class="audioEl" controls playsinline></audio>
+      <audio id="adminRemoteAudio" class="audioEl" playsinline></audio>
+      <div id="adminAudioIndicator" class="audioIndicator idle" aria-live="polite">
+        <span class="dot"></span>
+        <span class="text">Audio: standby</span>
+      </div>
 
       <div class="muted tiny" style="margin-top:8px">
-        Jika audio tidak keluar: klik “Aktifkan Speaker”, pastikan “Speaker Admin” ON, dan izin audio di browser tidak diblok.
+        Jika audio tidak keluar: klik “Aktifkan Audio, pastikan “Speaker Admin” ON, dan izin audio di browser tidak diblok.
       </div>
 
       <hr>

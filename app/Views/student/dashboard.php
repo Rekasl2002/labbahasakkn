@@ -62,7 +62,11 @@
       <select id="selSpk" style="flex:1;min-width:220px"></select>
     </div>
 
-    <audio id="remoteAudio" class="audioEl" controls playsinline></audio>
+    <audio id="remoteAudio" class="audioEl" playsinline></audio>
+    <div id="studentAudioIndicator" class="audioIndicator idle" aria-live="polite">
+      <span class="dot"></span>
+      <span class="text">Audio: standby</span>
+    </div>
 
     <div class="muted tiny" style="margin-top:8px">
       Jika tidak bunyi: klik “Aktifkan Speaker” agar browser meminta izin audio, lalu cek apakah speaker kamu dimute admin.

@@ -274,7 +274,39 @@ hr{border:none;border-top:1px solid var(--line);margin:12px 0}
 .table th{color:var(--muted);font-weight:700}
 
 /* WEBRTC audio */
-.audioEl{width:100%;margin-top:8px}
+.audioEl{
+  position:absolute;
+  left:-9999px;
+  width:1px;
+  height:1px;
+  opacity:0;
+  pointer-events:none;
+}
+.audioIndicator{
+  margin-top:8px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color:var(--muted);
+}
+.audioIndicator .dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--muted);
+  box-shadow:0 0 0 2px rgba(147,164,184,.18);
+}
+.audioIndicator.active{color:var(--text)}
+.audioIndicator.active .dot{
+  background:var(--ok);
+  box-shadow:0 0 0 2px rgba(29,127,77,.22);
+}
+.audioIndicator.off{color:var(--danger)}
+.audioIndicator.off .dot{
+  background:var(--danger);
+  box-shadow:0 0 0 2px rgba(179,58,58,.22);
+}
 .callBar{margin:8px 0}
 
 /* small polish for audio/video elements */
