@@ -95,6 +95,8 @@ $routes->group('api', static function($routes) {
 
     // Material
     $routes->get('material/current', 'Api\MaterialApi::current');
+    $routes->post('material/select', 'Api\MaterialApi::selectItem', ['filter' => 'adminauth']);
+    $routes->post('material/media-control', 'Api\MaterialApi::mediaControl', ['filter' => 'adminauth']);
 });
 
 /*

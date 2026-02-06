@@ -830,34 +830,139 @@
       return;
     }
 
-    const m = cm.material;
-    const f = cm.file;
+    const m = cm.material || {};
+    const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
+    const selected = cm.selected || null;
 
-    let html = `<div><b>${esc(m.title)}</b> <span class="muted">(${esc(m.type)})</span></div>`;
-
-    if(m.type === 'text'){
-      html += `<pre style="white-space:pre-wrap;margin:8px 0 0">${esc(m.text_content||'')}</pre>`;
-    }else if(f && f.url_path){
-      const mime = (f.mime||'').toLowerCase();
-      const url = esc(f.url_path);
+    const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
+    const isPdf = (name)=> /\.pdf$/i.test(name||'');
+    const renderFilePreview = (file)=>{
+      if(!file || !file.url_path) return '';
+      const mime = (file.mime||'').toLowerCase();
+      const url = esc(file.url_path);
+      const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
+      const filename = file.filename || 'file';
+      const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
 
       if(mime.startsWith('audio/')){
-        html += `<div style="margin-top:8px">
-          <audio controls src="${url}"></audio>
-          <div class="muted">Jika audio tidak bunyi: klik play (autoplay dibatasi browser).</div>
+        return `<div>
+          <audio class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="width:100%" playsinline tabindex="-1"></audio>
+          <div class="muted">Audio dikendalikan oleh admin.</div>
         </div>`;
-      }else if(mime.startsWith('video/')){
-        html += `<div style="margin-top:8px">
-          <video controls src="${url}" style="max-width:100%"></video>
-          <div class="muted">Klik play untuk mulai.</div>
-        </div>`;
-      }else{
-        html += `<div style="margin-top:8px"><a href="${url}" target="_blank">Buka file: ${esc(f.filename||'file')}</a></div>`;
       }
+      if(mime.startsWith('video/')){
+        return `<div>
+          <video class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="max-width:100%" playsinline tabindex="-1"></video>
+          <div class="muted">Video dikendalikan oleh admin.</div>
+        </div>`;
+      }
+      if(mime.startsWith('image/')){
+        return `<img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">`;
+      }
+      if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
+        const pdfUrl = previewUrl || url;
+        return `<iframe src="${pdfUrl}" style="width:100%;height:520px;border:0"></iframe>`;
+      }
+      if(isOfficeDoc(filename) || isOfficeDoc(url)){
+        return `<div class="muted">Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.</div>
+          <div><a href="${url}" target="_blank">Buka file</a></div>`;
+      }
+      return `<div><a href="${url}" target="_blank">Buka file: ${esc(filename)}</a></div>`;
+    };
+
+    let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
+    html += `<div style="margin-top:8px">`;
+    if(selected && selected.type === 'text'){
+      html += `<div class="materialText">${esc(selected.text||'')}</div>`;
+    }else if(selected && selected.type === 'file'){
+      html += renderFilePreview(selected.file);
+    }else if(m.type === 'text' && m.text_content){
+      html += `<pre style="white-space:pre-wrap;margin:0">${esc(m.text_content||'')}</pre>`;
+    }else if(files.length){
+      html += renderFilePreview(files[0]);
+    }else{
+      html += `<div class="muted">Admin belum memilih item materi.</div>`;
     }
+    html += `</div>`;
 
     materialViewer.innerHTML = html;
+    clearMediaUnlock();
     materialViewer.classList.remove('muted');
+  }
+
+  function getStudentMedia(){
+    if(!materialViewer) return null;
+    return materialViewer.querySelector('[data-student-media]');
+  }
+
+  function clearMediaUnlock(){
+    if(!materialViewer) return;
+    const box = materialViewer.querySelector('.mediaUnlock');
+    if(box) box.remove();
+  }
+
+  function showMediaUnlock(media){
+    if(!materialViewer || !media) return;
+    if(materialViewer.querySelector('.mediaUnlock')) return;
+    const box = document.createElement('div');
+    box.className = 'mediaUnlock';
+    box.innerHTML = `<div class="muted">Browser membutuhkan izin untuk memutar audio/video.</div>
+      <button class="btn" type="button">Aktifkan Audio/Video</button>`;
+    const btn = box.querySelector('button');
+    if(btn){
+      btn.onclick = async ()=>{
+        try{
+          await media.play();
+          clearMediaUnlock();
+        }catch(e){}
+      };
+    }
+    materialViewer.appendChild(box);
+  }
+
+  function applyMediaControl(p){
+    const media = getStudentMedia();
+    if(!media || !p) return;
+
+    const mediaFileId = media.dataset.fileId || '';
+    if(p.file_id && mediaFileId && String(p.file_id) !== String(mediaFileId)) return;
+
+    const toNum = (v)=> {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const clamp = (n, min, max)=> Math.min(max, Math.max(min, n));
+
+    const vol = toNum(p.volume);
+    if(vol !== null) media.volume = clamp(vol, 0, 1);
+
+    if(p.muted !== undefined && p.muted !== null){
+      media.muted = !!p.muted;
+    }
+
+    const rate = toNum(p.playback_rate);
+    if(rate !== null && rate > 0){
+      media.playbackRate = rate;
+    }
+
+    const t = toNum(p.current_time);
+    if(t !== null && Math.abs((media.currentTime || 0) - t) > 0.3){
+      try{ media.currentTime = Math.max(0, t); }catch(e){}
+    }
+
+    if(p.action === 'play'){
+      media.play().catch(()=> showMediaUnlock(media));
+    }else if(p.action === 'pause'){
+      try{ media.pause(); }catch(e){}
+    }else if(p.action === 'seek'){
+      // already handled by current_time update
+    }else if(p.action === 'sync'){
+      if(p.paused === 0){
+        media.play().catch(()=> showMediaUnlock(media));
+      }else if(p.paused === 1){
+        try{ media.pause(); }catch(e){}
+      }
+    }
   }
 
   async function refreshMaterial(){
@@ -1024,6 +1129,10 @@
 
       if(t === 'material_changed'){
         refreshMaterial();
+      }
+
+      if(t === 'material_media_control'){
+        applyMediaControl(p);
       }
 
       if(t === 'session_ended'){

@@ -996,19 +996,142 @@
       matBox.classList.add('muted');
       return;
     }
-    const m = cm.material;
-    const f = cm.file;
+    const m = cm.material || {};
+    const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
+    const textItems = Array.isArray(cm.text_items) ? cm.text_items : [];
 
-    let html = `<div><b>${esc(m.title)}</b> <span class="muted">(${esc(m.type)})</span></div>`;
+    let selected = cm.selected || null;
+    if(!selected){
+      if(cm.file) selected = {type:'file', file: cm.file};
+      else if(m.type === 'text' && m.text_content) selected = {type:'text', text: m.text_content};
+    }
 
-    if(m.type === 'text'){
-      html += `<pre style="white-space:pre-wrap;margin:8px 0 0">${esc(m.text_content||'')}</pre>`;
-    }else if(f && f.url_path){
-      html += `<div style="margin-top:8px"><a href="${esc(f.url_path)}" target="_blank">Buka file: ${esc(f.filename||'file')}</a></div>`;
+    const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
+    const isPdf = (name)=> /\.pdf$/i.test(name||'');
+    const renderFilePreview = (file)=>{
+      if(!file || !file.url_path) return '';
+      const mime = (file.mime||'').toLowerCase();
+      const url = esc(file.url_path);
+      const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
+      const filename = file.filename || 'file';
+      const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
+
+      if(mime.startsWith('audio/')){
+        return `<audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>`;
+      }
+      if(mime.startsWith('video/')){
+        return `<video data-admin-media="1"${fileIdAttr} controls src="${url}" style="max-width:100%"></video>`;
+      }
+      if(mime.startsWith('image/')){
+        return `<img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">`;
+      }
+      if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
+        const pdfUrl = previewUrl || url;
+        return `<iframe src="${pdfUrl}" style="width:100%;height:220px;border:0"></iframe>`;
+      }
+      if(isOfficeDoc(filename) || isOfficeDoc(url)){
+        return `<div class="muted tiny">Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.</div>
+          <div><a href="${url}" target="_blank">Buka file</a></div>`;
+      }
+      return `<div><a href="${url}" target="_blank">Buka file: ${esc(filename)}</a></div>`;
+    };
+
+    let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
+    html += `<div style="margin-top:8px">`;
+    if(selected && selected.type === 'text'){
+      html += `<div class="materialText">${esc(selected.text||'')}</div>`;
+    }else if(selected && selected.type === 'file'){
+      html += renderFilePreview(selected.file);
+    }else{
+      html += `<div class="muted">Belum ada item dipilih.</div>`;
+    }
+    html += `</div>`;
+
+    if(textItems.length){
+      html += `<div class="muted tiny" style="margin-top:10px">Daftar Teks</div>`;
+      html += `<ol class="materialList">`;
+      textItems.forEach((t, i)=>{
+        const hasIndex = selected && selected.type === 'text' && selected.index !== null && selected.index !== undefined && selected.index !== '';
+        const active = hasIndex && Number(selected.index) === i;
+        html += `<li class="materialItem ${active ? 'active' : ''}">
+          <div class="label"><span class="muted">${i+1}.</span> ${esc(t)}</div>
+          <button class="btn tiny" type="button" data-mat-action="pick-text" data-text-index="${i}">Tampilkan</button>
+        </li>`;
+      });
+      html += `</ol>`;
+    }
+
+    if(files.length){
+      html += `<div class="muted tiny" style="margin-top:10px">Daftar File</div>`;
+      html += `<ul class="materialList">`;
+      files.forEach((f)=>{
+        const active = selected && selected.type === 'file' && selected.file && Number(selected.file.id) === Number(f.id);
+        html += `<li class="materialItem ${active ? 'active' : ''}">
+          <div class="label">${esc(f.filename||'file')}</div>
+          <button class="btn tiny" type="button" data-mat-action="pick-file" data-file-id="${f.id}">Tampilkan</button>
+        </li>`;
+      });
+      html += `</ul>`;
     }
 
     matBox.innerHTML = html;
     matBox.classList.remove('muted');
+    bindAdminMediaControls();
+  }
+
+  let _boundAdminMedia = null;
+  function bindAdminMediaControls(){
+    if(!matBox) return;
+    const media = matBox.querySelector('[data-admin-media]');
+    if(!media || media === _boundAdminMedia) return;
+    _boundAdminMedia = media;
+
+    const lastSent = { volume: 0, seek: 0, sync: 0 };
+    const now = ()=> Date.now();
+    const toFixed = (n, d)=> {
+      const num = Number(n);
+      if(!Number.isFinite(num)) return 0;
+      const p = Math.pow(10, d);
+      return Math.round(num * p) / p;
+    };
+
+    const send = (action)=>{
+      const fileId = media.dataset.fileId || '';
+      post('/api/material/media-control', {
+        action,
+        file_id: fileId,
+        current_time: toFixed(media.currentTime || 0, 3),
+        volume: toFixed(media.volume ?? 1, 2),
+        muted: media.muted ? 1 : 0,
+        paused: media.paused ? 1 : 0,
+        playback_rate: toFixed(media.playbackRate || 1, 2),
+      });
+    };
+
+    media.addEventListener('play', ()=> send('play'));
+    media.addEventListener('pause', ()=> send('pause'));
+    media.addEventListener('ratechange', ()=> send('rate'));
+    media.addEventListener('loadedmetadata', ()=>{
+      const t = now();
+      if(t - lastSent.sync > 400){
+        lastSent.sync = t;
+        send('sync');
+      }
+    });
+    media.addEventListener('seeked', ()=>{
+      const t = now();
+      if(t - lastSent.seek > 200){
+        lastSent.seek = t;
+        send('seek');
+      }
+    });
+    media.addEventListener('volumechange', ()=>{
+      const t = now();
+      if(t - lastSent.volume > 200){
+        lastSent.volume = t;
+        send('volume');
+      }
+    });
   }
 
   async function refreshMaterial(){
@@ -1120,6 +1243,24 @@
     btnBroadcast.onclick = ()=>{
       post('/api/control/admin/broadcast-text', {broadcast_text: (broadcastInput && broadcastInput.value) ? broadcastInput.value : ''});
     };
+  }
+
+  if(matBox){
+    matBox.addEventListener('click', async (ev)=>{
+      const btn = ev.target.closest('[data-mat-action]');
+      if(!btn) return;
+      const action = btn.dataset.matAction || '';
+      if(action === 'pick-file'){
+        const fileId = btn.dataset.fileId || '';
+        const r = await post('/api/material/select', {item_type:'file', file_id: fileId});
+        if(r && r.ok) refreshMaterial();
+      }
+      if(action === 'pick-text'){
+        const textIndex = btn.dataset.textIndex || '';
+        const r = await post('/api/material/select', {item_type:'text', text_index: textIndex});
+        if(r && r.ok) refreshMaterial();
+      }
+    });
   }
 
   async function saveVoiceLock(){

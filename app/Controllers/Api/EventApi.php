@@ -12,6 +12,91 @@ use App\Models\MaterialFileModel;
 
 class EventApi extends BaseController
 {
+    private function parseTextItems(array $material): array
+    {
+        $type = (string) ($material['type'] ?? '');
+        if ($type !== 'folder') return [];
+
+        $raw = (string) ($material['text_content'] ?? '');
+        if ($raw === '') return [];
+
+        $lines = preg_split("/\r\n|\n|\r/", $raw);
+        $out = [];
+        if (is_array($lines)) {
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') $out[] = $line;
+            }
+        }
+        return $out;
+    }
+
+    private function buildCurrentMaterial(?array $material, ?array $state): ?array
+    {
+        if (!$material) return null;
+
+        $files = (new MaterialFileModel())
+            ->where('material_id', $material['id'])
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+
+        foreach ($files as &$f) {
+            if (isset($f['url_path'])) $f['url_path'] = (string) $f['url_path'];
+            if (isset($f['preview_url_path'])) $f['preview_url_path'] = (string) $f['preview_url_path'];
+        }
+        unset($f);
+
+        $textItems = $this->parseTextItems($material);
+
+        $selected = null;
+        $fileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
+        $textIndexRaw = $state['current_material_text_index'] ?? null;
+
+        if ($fileId > 0) {
+            foreach ($files as $f) {
+                if ((int) $f['id'] === $fileId) {
+                    $selected = ['type' => 'file', 'file' => $f];
+                    break;
+                }
+            }
+        }
+
+        if (!$selected && $textIndexRaw !== null && $textIndexRaw !== '') {
+            $idx = (int) $textIndexRaw;
+            if (isset($textItems[$idx])) {
+                $selected = ['type' => 'text', 'index' => $idx, 'text' => $textItems[$idx]];
+            }
+        }
+
+        if (!$selected) {
+            $type = (string) ($material['type'] ?? '');
+            if ($type === 'text' && !empty($material['text_content'])) {
+                $selected = [
+                    'type' => 'text',
+                    'index' => null,
+                    'text' => (string) $material['text_content'],
+                    'mode' => 'full',
+                ];
+            } elseif ($type === 'file' && !empty($files)) {
+                $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
+            } elseif ($type === 'folder') {
+                if (!empty($textItems)) {
+                    $selected = ['type' => 'text', 'index' => 0, 'text' => $textItems[0], 'mode' => 'default'];
+                } elseif (!empty($files)) {
+                    $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
+                }
+            }
+        }
+
+        return [
+            'material' => $material,
+            'files' => $files,
+            'text_items' => $textItems,
+            'selected' => $selected,
+        ];
+    }
+
     public function poll()
     {
         // Only GET (biar konsisten dan gampang di-cache-control)
@@ -161,19 +246,7 @@ class EventApi extends BaseController
             $currentMaterial = null;
             if ($stateRow && !empty($stateRow['current_material_id'])) {
                 $material = (new MaterialModel())->find((int) $stateRow['current_material_id']);
-                if ($material) {
-                    $file = (new MaterialFileModel())->where('material_id', $material['id'])->first();
-
-                    // Opsional: jika file ada, pastikan ada url_path string
-                    if ($file && isset($file['url_path'])) {
-                        $file['url_path'] = (string) $file['url_path'];
-                    }
-
-                    $currentMaterial = [
-                        'material' => $material,
-                        'file' => $file,
-                    ];
-                }
+                $currentMaterial = $this->buildCurrentMaterial($material, $stateRow);
             }
 
             $payload['snapshot'] = [

@@ -71,9 +71,6 @@
 
     <hr>
 
-    <div class="row wrap gap" style="align-items:center">
-      <a class="btn" href="/admin/materials">📚 Manajemen Materi</a>
-    </div>
   <?php endif; ?>
 </div>
 

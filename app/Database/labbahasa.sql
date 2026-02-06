@@ -114,10 +114,12 @@ CREATE TABLE `materials` (
 CREATE TABLE `material_files` (
   `id` int UNSIGNED NOT NULL,
   `material_id` int UNSIGNED NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
   `filename` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
   `mime` varchar(120) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `size` int UNSIGNED DEFAULT NULL,
   `url_path` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `preview_url_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -242,6 +244,8 @@ INSERT INTO `sessions` (`id`, `name`, `is_active`, `started_at`, `ended_at`, `cr
 CREATE TABLE `session_state` (
   `session_id` int UNSIGNED NOT NULL,
   `current_material_id` int UNSIGNED DEFAULT NULL,
+  `current_material_file_id` int UNSIGNED DEFAULT NULL,
+  `current_material_text_index` int DEFAULT NULL,
   `broadcast_text` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `allow_student_mic` tinyint(1) NOT NULL DEFAULT '1',
   `allow_student_speaker` tinyint(1) NOT NULL DEFAULT '1',
@@ -252,10 +256,10 @@ CREATE TABLE `session_state` (
 -- Dumping data untuk tabel `session_state`
 --
 
-INSERT INTO `session_state` (`session_id`, `current_material_id`, `broadcast_text`, `allow_student_mic`, `allow_student_speaker`, `updated_at`) VALUES
-(1, NULL, 'Test', 1, 1, '2026-02-01 02:04:24'),
-(2, NULL, 'test', 1, 1, '2026-02-01 02:20:25'),
-(3, NULL, NULL, 1, 1, '2026-02-01 02:51:07');
+INSERT INTO `session_state` (`session_id`, `current_material_id`, `current_material_file_id`, `current_material_text_index`, `broadcast_text`, `allow_student_mic`, `allow_student_speaker`, `updated_at`) VALUES
+(1, NULL, NULL, NULL, 'Test', 1, 1, '2026-02-01 02:04:24'),
+(2, NULL, NULL, NULL, 'test', 1, 1, '2026-02-01 02:20:25'),
+(3, NULL, NULL, NULL, NULL, 1, 1, '2026-02-01 02:51:07');
 
 --
 -- Indeks untuk tabel yang dibuang

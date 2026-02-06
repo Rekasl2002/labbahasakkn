@@ -86,7 +86,10 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
             <h2 style="margin:0">Materi Aktif</h2>
             <div class="muted tiny" style="margin-top:4px">Ditampilkan di halaman siswa.</div>
           </div>
-          <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
+          <div class="row gap wrap" style="align-items:center">
+            <a class="btn js-open-settings" href="/admin/settings?tab=materials">Manajemen Materi</a>
+            <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
+          </div>
         </div>
 
         <div id="currentMaterialBox" class="materialBox muted" style="margin-top:10px">Belum ada materi.</div>

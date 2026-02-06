@@ -3,9 +3,9 @@
   <nav class="nav">
     <a href="/about">About</a>
     <?php if (session('admin_id')): ?>
-      <a href="/admin/settings">⚙ Pengaturan</a>
+      <a href="/admin/settings?tab=auto-detect" class="js-open-settings">⚙ Pengaturan</a>
     <?php elseif (session('participant_id')): ?>
-      <a href="/student/settings">⚙ Pengaturan</a>
+      <a href="/student/settings?tab=general" class="js-open-settings">⚙ Pengaturan</a>
     <?php endif; ?>
     <?php if (session('admin_id') || session('participant_id')): ?>
       <a href="/logout">Logout</a>

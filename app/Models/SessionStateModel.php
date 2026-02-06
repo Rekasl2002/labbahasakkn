@@ -12,6 +12,8 @@ class SessionStateModel extends Model
     protected $allowedFields = [
         'session_id',
         'current_material_id',
+        'current_material_file_id',
+        'current_material_text_index',
         'broadcast_text',
         'allow_student_mic',
         'allow_student_speaker',
@@ -54,6 +56,41 @@ class SessionStateModel extends Model
         }
     }
 
+    /**
+     * Pastikan kolom materi item ada (fallback jika migrasi belum dijalankan).
+     * Aman dipanggil berkali-kali.
+     */
+    private function ensureMaterialItemColumns(): void
+    {
+        $db = db_connect();
+        $table = $this->table;
+
+        $hasFile = $db->fieldExists('current_material_file_id', $table);
+        $hasText = $db->fieldExists('current_material_text_index', $table);
+
+        if (!$hasFile) {
+            try {
+                $db->query("ALTER TABLE `{$table}` ADD `current_material_file_id` INT UNSIGNED NULL AFTER `current_material_id`");
+            } catch (\Throwable $e) {
+                // biarkan caller yang memutuskan
+            }
+            $hasFile = $db->fieldExists('current_material_file_id', $table);
+        }
+
+        if (!$hasText) {
+            try {
+                $db->query("ALTER TABLE `{$table}` ADD `current_material_text_index` INT NULL AFTER `current_material_file_id`");
+            } catch (\Throwable $e) {
+                // biarkan caller yang memutuskan
+            }
+            $hasText = $db->fieldExists('current_material_text_index', $table);
+        }
+
+        if (!$hasFile || !$hasText) {
+            throw new \RuntimeException('Kolom materi item belum tersedia. Jalankan migrasi terbaru.');
+        }
+    }
+
     public function ensureRow(int $sessionId): void
     {
         $row = $this->find($sessionId);
@@ -65,6 +102,13 @@ class SessionStateModel extends Model
                 'broadcast_text' => null,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
+
+            if ($db->fieldExists('current_material_file_id', $this->table)) {
+                $data['current_material_file_id'] = null;
+            }
+            if ($db->fieldExists('current_material_text_index', $this->table)) {
+                $data['current_material_text_index'] = null;
+            }
 
             if ($db->fieldExists('allow_student_mic', $this->table)) {
                 $data['allow_student_mic'] = 1;
@@ -82,6 +126,17 @@ class SessionStateModel extends Model
         $this->ensureRow($sessionId);
         $this->update($sessionId, [
             'current_material_id' => $materialId,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function setCurrentMaterialItem(int $sessionId, ?int $fileId, ?int $textIndex): void
+    {
+        $this->ensureMaterialItemColumns();
+        $this->ensureRow($sessionId);
+        $this->update($sessionId, [
+            'current_material_file_id' => $fileId ?: null,
+            'current_material_text_index' => $textIndex,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
     }

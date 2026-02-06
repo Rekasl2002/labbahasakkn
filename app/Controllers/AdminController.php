@@ -8,6 +8,8 @@ use App\Models\ParticipantModel;
 use App\Models\MessageModel;
 use App\Models\EventModel;
 use App\Models\AdminModel;
+use App\Models\MaterialModel;
+use App\Models\MaterialFileModel;
 
 class AdminController extends BaseController
 {
@@ -36,8 +38,50 @@ class AdminController extends BaseController
         helper('settings');
         $settings = lab_load_settings();
 
-        return view('admin/settings', [
+        $tab = (string) $this->request->getGet('tab');
+        $tab = $tab !== '' ? $tab : 'auto-detect';
+        $allowedTabs = ['auto-detect', 'password', 'materials'];
+        $embed = (string) $this->request->getGet('embed') === '1';
+
+        $editId = (int) $this->request->getGet('edit_id');
+        if ($editId > 0) {
+            $tab = 'materials';
+        }
+        if (!in_array($tab, $allowedTabs, true)) {
+            $tab = 'auto-detect';
+        }
+
+        $material = null;
+        $files = [];
+        $file = null;
+        $mode = 'create';
+        $materials = [];
+
+        if ($tab === 'materials') {
+            $materials = (new MaterialModel())->orderBy('id', 'DESC')->findAll();
+            if ($editId > 0) {
+                $material = (new MaterialModel())->find($editId);
+                if ($material) {
+                    $mode = 'edit';
+                    $files = (new MaterialFileModel())
+                        ->where('material_id', $editId)
+                        ->orderBy('sort_order', 'ASC')
+                        ->orderBy('id', 'ASC')
+                        ->findAll();
+                    $file = $files[0] ?? null;
+                }
+            }
+        }
+
+        return view($embed ? 'admin/settings/embed' : 'admin/settings/index', [
             'settings' => $settings,
+            'materials' => $materials,
+            'mode' => $mode,
+            'material' => $material,
+            'file' => $file,
+            'files' => $files,
+            'tab' => $tab,
+            'embed' => $embed,
         ]);
     }
 
@@ -83,7 +127,9 @@ class AdminController extends BaseController
             return redirect()->back()->with('error', 'Gagal menyimpan pengaturan.');
         }
 
-        return redirect()->to('/admin/settings')->with('ok', 'Pengaturan disimpan.');
+        $embed = (string) $this->request->getPost('embed') === '1' || (string) $this->request->getGet('embed') === '1';
+        $target = '/admin/settings?tab=auto-detect' . ($embed ? '&embed=1' : '');
+        return redirect()->to($target)->with('ok', 'Pengaturan disimpan.');
     }
 
     public function updatePassword()
@@ -119,7 +165,9 @@ class AdminController extends BaseController
             'password_hash' => $hash,
         ]);
 
-        return redirect()->to('/admin/settings')->with('ok', 'Password admin berhasil diubah.');
+        $embed = (string) $this->request->getPost('embed') === '1' || (string) $this->request->getGet('embed') === '1';
+        $target = '/admin/settings?tab=password' . ($embed ? '&embed=1' : '');
+        return redirect()->to($target)->with('ok', 'Password admin berhasil diubah.');
     }
 
     public function startSession()
