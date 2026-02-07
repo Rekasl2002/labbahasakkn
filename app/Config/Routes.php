@@ -38,6 +38,12 @@ $routes->setAutoRoute(true);
 $routes->get('/', 'Home::index');
 $routes->get('about', 'Home::about');
 
+// Error preview (non-production only, guarded in controller)
+$routes->group('errors', static function ($routes) {
+    $routes->get('preview', 'ErrorsPreview::index');
+    $routes->get('preview/(:any)', 'ErrorsPreview::show/$1');
+});
+
 // Auth
 $routes->get('login', 'AuthController::chooseRole');
 $routes->post('login/admin', 'AuthController::adminLogin');
