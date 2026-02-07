@@ -3,6 +3,16 @@ use CodeIgniter\HTTP\Header;
 use CodeIgniter\CodeIgniter;
 
 $errorId = uniqid('error', true);
+$summaryLines = [
+    'Type: ' . $exception::class,
+    'Code: ' . ($exception->getCode() ? $exception->getCode() : '-'),
+    'Message: ' . $exception->getMessage(),
+    'File: ' . clean_path($file),
+    'Line: ' . $line,
+    'Time: ' . date('Y-m-d H:i:s'),
+    'Environment: ' . ENVIRONMENT,
+];
+$summaryText = implode("\n", $summaryLines);
 ?>
 <!doctype html>
 <html>
@@ -32,11 +42,32 @@ $errorId = uniqid('error', true);
         <div class="container">
             <h1><?= esc($title), esc($exception->getCode() ? ' #' . $exception->getCode() : '') ?></h1>
             <p>
-                <?= nl2br(esc($exception->getMessage())) ?>
+                <?= nl2br((string) esc($exception->getMessage())) ?>
                 <a href="https://www.duckduckgo.com/?q=<?= urlencode($title . ' ' . preg_replace('#\'.*\'|".*"#Us', '', $exception->getMessage())) ?>"
                    rel="noreferrer" target="_blank">search &rarr;</a>
             </p>
-        </div>
+    </div>
+</div>
+
+    <div class="container">
+        <section class="summary">
+            <div class="summary-header">
+                <div class="summary-title">
+                    <span class="badge">Copy Ready</span>
+                    <h2>Ringkasan Error</h2>
+                </div>
+                <button
+                    type="button"
+                    class="copy-button"
+                    data-copy-target="error-summary"
+                    data-copy-label="Salin ringkasan"
+                    data-copy-done="Tersalin"
+                >
+                    Salin ringkasan
+                </button>
+            </div>
+            <pre id="error-summary" class="copy-block"><?= esc($summaryText) ?></pre>
+        </section>
     </div>
 
     <!-- Source -->
@@ -62,7 +93,7 @@ $errorId = uniqid('error', true);
     Caused by:
     <?= esc($prevException::class), esc($prevException->getCode() ? ' #' . $prevException->getCode() : '') ?>
 
-    <?= nl2br(esc($prevException->getMessage())) ?>
+    <?= nl2br((string) esc($prevException->getMessage())) ?>
     <a href="https://www.duckduckgo.com/?q=<?= urlencode($prevException::class . ' ' . preg_replace('#\'.*\'|".*"#Us', '', $prevException->getMessage())) ?>"
        rel="noreferrer" target="_blank">search &rarr;</a>
     <?= esc(clean_path($prevException->getFile()) . ':' . $prevException->getLine()) ?>

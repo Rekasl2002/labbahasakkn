@@ -46,6 +46,8 @@ function init()
         }
         i ++;
     }
+
+    initCopyButtons();
 }
 
 function showTab()
@@ -113,4 +115,77 @@ function toggle(elem)
     elem.style.display = disp == 'block' ? 'none' : 'block';
 
     return false;
+}
+
+function initCopyButtons()
+{
+    var buttons = document.querySelectorAll('[data-copy-target]');
+    if (! buttons.length)
+    {
+        return;
+    }
+
+    for (var i = 0; i < buttons.length; i ++)
+    {
+        buttons[i].addEventListener('click', function () {
+            var targetId = this.getAttribute('data-copy-target');
+            var target = document.getElementById(targetId);
+            if (! target)
+            {
+                return;
+            }
+
+            copyText(target.textContent || target.innerText || '', this);
+        });
+    }
+}
+
+function copyText(text, button)
+{
+    var original = button.getAttribute('data-copy-label') || button.textContent;
+    var done = button.getAttribute('data-copy-done') || 'Copied';
+
+    function setState(label)
+    {
+        button.textContent = label;
+        setTimeout(function () {
+            button.textContent = original;
+        }, 1600);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText)
+    {
+        navigator.clipboard.writeText(text).then(function () {
+            setState(done);
+        }, function () {
+            fallbackCopy(text, setState, done);
+        });
+    }
+    else
+    {
+        fallbackCopy(text, setState, done);
+    }
+}
+
+function fallbackCopy(text, setState, done)
+{
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try
+    {
+        document.execCommand('copy');
+        setState(done);
+    }
+    catch (err)
+    {
+        setState('Manual');
+    }
+
+    document.body.removeChild(textarea);
 }

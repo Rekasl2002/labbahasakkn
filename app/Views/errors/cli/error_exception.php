@@ -2,30 +2,66 @@
 
 use CodeIgniter\CLI\CLI;
 
-// The main Exception
-CLI::write('[' . $exception::class . ']', 'light_gray', 'red');
-CLI::write($message);
-CLI::write('at ' . CLI::color(clean_path($exception->getFile()) . ':' . $exception->getLine(), 'green'));
+$separator = str_repeat('=', 78);
+$subSeparator = str_repeat('-', 78);
+
 CLI::newLine();
+CLI::write($separator, 'light_gray');
+CLI::write('Unhandled Exception', 'light_gray', 'red');
+CLI::write($separator, 'light_gray');
+CLI::newLine();
+
+CLI::write('Type    : ' . $exception::class, 'yellow');
+if ($exception->getCode()) {
+    CLI::write('Code    : ' . $exception->getCode(), 'yellow');
+}
+CLI::write('Message : ' . $message);
+CLI::write('Location: ' . CLI::color(clean_path($exception->getFile()) . ':' . $exception->getLine(), 'green'));
+CLI::newLine();
+
+$copySummary = [
+    'Type: ' . $exception::class,
+    'Code: ' . ($exception->getCode() ? $exception->getCode() : '-'),
+    'Message: ' . $message,
+    'Location: ' . clean_path($exception->getFile()) . ':' . $exception->getLine(),
+];
 
 $last = $exception;
 
 while ($prevException = $last->getPrevious()) {
     $last = $prevException;
 
-    CLI::write('  Caused by:');
-    CLI::write('  [' . $prevException::class . ']', 'red');
-    CLI::write('  ' . $prevException->getMessage());
-    CLI::write('  at ' . CLI::color(clean_path($prevException->getFile()) . ':' . $prevException->getLine(), 'green'));
+    CLI::write('Caused by:', 'red');
+    CLI::write('  Type    : ' . $prevException::class, 'yellow');
+    if ($prevException->getCode()) {
+        CLI::write('  Code    : ' . $prevException->getCode(), 'yellow');
+    }
+    CLI::write('  Message : ' . $prevException->getMessage());
+    CLI::write('  Location: ' . CLI::color(clean_path($prevException->getFile()) . ':' . $prevException->getLine(), 'green'));
     CLI::newLine();
+
+    $copySummary[] = 'Caused by: ' . $prevException::class;
+    if ($prevException->getCode()) {
+        $copySummary[] = 'Code: ' . $prevException->getCode();
+    }
+    $copySummary[] = 'Message: ' . $prevException->getMessage();
+    $copySummary[] = 'Location: ' . clean_path($prevException->getFile()) . ':' . $prevException->getLine();
 }
+
+CLI::write('Copy-friendly:', 'green');
+foreach ($copySummary as $line) {
+    CLI::write($line);
+}
+CLI::newLine();
 
 // The backtrace
 if (defined('SHOW_DEBUG_BACKTRACE') && SHOW_DEBUG_BACKTRACE) {
     $backtraces = $last->getTrace();
 
     if ($backtraces) {
-        CLI::write('Backtrace:', 'green');
+        CLI::write($subSeparator, 'light_gray');
+        CLI::write('Backtrace', 'green');
+        CLI::write($subSeparator, 'light_gray');
     }
 
     foreach ($backtraces as $i => $error) {
