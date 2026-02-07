@@ -2,8 +2,8 @@
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $host = 'localhost';
-$user = 'nagw8149_XXXXX';     // samakan persis dengan cPanel
-$pass = 'PASSWORD_KAMU';      // tempel
+$user = 'nagw8149_userlab';     // samakan persis dengan cPanel
+$pass = 'labbahasa123';      // tempel
 $db   = 'nagw8149_labbahasa';
 $port = 3306;
 
