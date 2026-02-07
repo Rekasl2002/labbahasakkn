@@ -4,91 +4,34 @@
  * SIB-K Themed Exception Page (Dev-friendly, Copyable)
  */
 
-if (function_exists('helper')) {
-  helper('url');
-}
-
-$envValue = function (string $key, string $default = ''): string {
-  if (function_exists('env')) {
-    return (string) env($key, $default);
-  }
-  $envKey = strtoupper(str_replace('.', '_', $key));
-  $val = getenv($envKey);
-  return $val !== false ? (string) $val : $default;
-};
-
-$settingFunc = function_exists('setting') ? 'setting' : null;
-$settingValue = function (string $key, string $default, ?string $group = null) use ($settingFunc): string {
-  if ($settingFunc === null) {
-    return $default;
-  }
-  try {
-    if ($group !== null) {
-      return (string) call_user_func($settingFunc, $key, $default, $group);
-    }
-    return (string) call_user_func($settingFunc, $key, $default);
-  } catch (\Throwable $t) {
-    try {
-      return (string) call_user_func($settingFunc, $key);
-    } catch (\Throwable $t) {
-      return $default;
-    }
-  }
-};
-
-$baseUrl = function (string $path = ''): string {
-  if (function_exists('base_url')) {
-    return (string) base_url($path);
-  }
-  $path = ltrim($path, '/');
-  return '/' . $path;
-};
-
-$normalizeText = function ($value, string $fallback = ''): string {
-  if ($value === null) {
-    return $fallback;
-  }
-  if (is_string($value)) {
-    return $value;
-  }
-  if (is_int($value) || is_float($value) || is_bool($value)) {
-    return (string) $value;
-  }
-  if (is_array($value)) {
-    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($encoded !== false) {
-      return $encoded;
-    }
-    return trim(print_r($value, true));
-  }
-  if (is_object($value)) {
-    if (method_exists($value, '__toString')) {
-      return (string) $value;
-    }
-    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($encoded !== false) {
-      return $encoded;
-    }
-    return get_class($value);
-  }
-  return $fallback;
-};
+helper('url');
 
 // Branding (aman kalau helper setting() belum ada)
-$appName = $settingValue('app_name', 'SIB-K', 'general');
-$schoolName = $settingValue('school_name', $envValue('school.name', ''), 'general');
-$logoPath = $settingValue('logo_path', 'assets/images/logo.png', 'branding');
-$faviconPath = $settingValue('favicon_path', 'assets/images/favicon.ico', 'branding');
+$appName = function_exists('setting')
+  ? setting('app_name', 'SIB-K', 'general')
+  : 'SIB-K';
 
-$logoUrl = $baseUrl($logoPath);
-$faviconUrl = $baseUrl($faviconPath);
+$schoolName = function_exists('setting')
+  ? setting('school_name', env('school.name', ''), 'general')
+  : env('school.name', '');
+
+$logoPath = function_exists('setting')
+  ? setting('logo_path', 'assets/images/logo.png', 'branding')
+  : 'assets/images/logo.png';
+
+$faviconPath = function_exists('setting')
+  ? setting('favicon_path', 'assets/images/favicon.ico', 'branding')
+  : 'assets/images/favicon.ico';
+
+$logoUrl = base_url($logoPath);
+$faviconUrl = base_url($faviconPath);
 
 // Ambil exception & info yang mungkin dikirim CI (toleran berbagai versi/handler)
 $ex = $exception ?? null;
 
-$exClass   = $ex ? get_class($ex) : $normalizeText($type ?? 'Exception', 'Exception');
-$exMessage = $normalizeText($ex ? $ex->getMessage() : ($message ?? 'Exception'), 'Exception');
-$exFile    = $normalizeText($ex ? $ex->getFile() : ($file ?? ''), '');
+$exClass   = $ex ? get_class($ex) : ($type ?? 'Exception');
+$exMessage = $ex ? $ex->getMessage() : ($message ?? 'Exception');
+$exFile    = $ex ? $ex->getFile() : ($file ?? '');
 $exLine    = $ex ? (int) $ex->getLine() : (int) ($line ?? 0);
 
 // code/status
@@ -109,14 +52,7 @@ if (isset($trace) && is_string($trace) && trim($trace) !== '') {
 }
 
 // Request context (aman, ringkas)
-$req = null;
-if (function_exists('service')) {
-  try {
-    $req = service('request');
-  } catch (\Throwable $t) {
-    $req = null;
-  }
-}
+$req = service('request');
 
 $now = date('Y-m-d H:i:s');
 $envName = defined('ENVIRONMENT') ? ENVIRONMENT : 'unknown';
@@ -132,23 +68,17 @@ if (class_exists('\CodeIgniter\CodeIgniter') && defined('\CodeIgniter\CodeIgnite
 }
 
 
-$method = (is_object($req) && method_exists($req, 'getMethod'))
-  ? strtoupper((string) $req->getMethod())
-  : '';
+$method = method_exists($req, 'getMethod') ? strtoupper((string)$req->getMethod()) : '';
 $currentUrl = '';
 try {
-  if (function_exists('current_url')) {
-    $currentUrl = current_url();
-  }
+  $currentUrl = current_url();
 } catch (\Throwable $t) {
   $currentUrl = '';
 }
 
-$ip = (is_object($req) && method_exists($req, 'getIPAddress'))
-  ? (string) $req->getIPAddress()
-  : '';
-$ua = (is_object($req) && method_exists($req, 'getUserAgent') && $req->getUserAgent())
-  ? (string) $req->getUserAgent()
+$ip = method_exists($req, 'getIPAddress') ? (string)$req->getIPAddress() : '';
+$ua = method_exists($req, 'getUserAgent') && $req->getUserAgent()
+  ? (string)$req->getUserAgent()
   : ($_SERVER['HTTP_USER_AGENT'] ?? '');
 
 $get = $_GET ?? [];
@@ -157,7 +87,7 @@ $post = $_POST ?? [];
 // Headers (ambil subset yang biasanya berguna)
 $headersSubset = [];
 try {
-  if (is_object($req) && method_exists($req, 'getHeaders')) {
+  if (method_exists($req, 'getHeaders')) {
     $hdrs = $req->getHeaders();
     $pick = ['host','referer','origin','content-type','accept','accept-language','x-requested-with','user-agent'];
     foreach ($pick as $k) {
@@ -210,7 +140,7 @@ $allPayload[] = $traceText ?: '(no trace available)';
 $allPayloadStr = implode("\n", $allPayload);
 
 // UI labels safe
-$title = $normalizeText($title ?? 'Exception', 'Exception');
+$title = $title ?? 'Exception';
 ?>
 <!doctype html>
 <html lang="id">
@@ -471,7 +401,7 @@ $title = $normalizeText($title ?? 'Exception', 'Exception');
             </div>
 
             <div class="copybar">
-              <a class="btn btn-primary" href="<?= esc($baseUrl('/')) ?>">Ke Beranda</a>
+              <a class="btn btn-primary" href="<?= base_url('/') ?>">Ke Beranda</a>
               <button class="btn btn-ghost" type="button" onclick="history.back()">Kembali</button>
               <button class="btn btn-ghost" type="button" onclick="location.reload()">Muat Ulang</button>
               <button class="btn btn-ghost" type="button" onclick="selectAll('ta-message')">Select Message</button>

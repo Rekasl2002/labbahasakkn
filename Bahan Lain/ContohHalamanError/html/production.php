@@ -1,81 +1,24 @@
 <?php
-if (function_exists('helper')) {
-  helper('url');
-}
+helper('url');
 
-$envValue = function (string $key, string $default = ''): string {
-  if (function_exists('env')) {
-    return (string) env($key, $default);
-  }
-  $envKey = strtoupper(str_replace('.', '_', $key));
-  $val = getenv($envKey);
-  return $val !== false ? (string) $val : $default;
-};
+$appName = function_exists('setting')
+  ? setting('app_name', 'SIB-K', 'general')
+  : 'SIB-K';
 
-$settingFunc = function_exists('setting') ? 'setting' : null;
-$settingValue = function (string $key, string $default, ?string $group = null) use ($settingFunc): string {
-  if ($settingFunc === null) {
-    return $default;
-  }
-  try {
-    if ($group !== null) {
-      return (string) call_user_func($settingFunc, $key, $default, $group);
-    }
-    return (string) call_user_func($settingFunc, $key, $default);
-  } catch (\Throwable $t) {
-    try {
-      return (string) call_user_func($settingFunc, $key);
-    } catch (\Throwable $t) {
-      return $default;
-    }
-  }
-};
+$schoolName = function_exists('setting')
+  ? setting('school_name', env('school.name', ''), 'general')
+  : env('school.name', '');
 
-$baseUrl = function (string $path = ''): string {
-  if (function_exists('base_url')) {
-    return (string) base_url($path);
-  }
-  $path = ltrim($path, '/');
-  return '/' . $path;
-};
+$logoPath = function_exists('setting')
+  ? setting('logo_path', 'assets/images/logo.png', 'branding')
+  : 'assets/images/logo.png';
 
-$normalizeText = function ($value, string $fallback = ''): string {
-  if ($value === null) {
-    return $fallback;
-  }
-  if (is_string($value)) {
-    return $value;
-  }
-  if (is_int($value) || is_float($value) || is_bool($value)) {
-    return (string) $value;
-  }
-  if (is_array($value)) {
-    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($encoded !== false) {
-      return $encoded;
-    }
-    return trim(print_r($value, true));
-  }
-  if (is_object($value)) {
-    if (method_exists($value, '__toString')) {
-      return (string) $value;
-    }
-    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($encoded !== false) {
-      return $encoded;
-    }
-    return get_class($value);
-  }
-  return $fallback;
-};
+$faviconPath = function_exists('setting')
+  ? setting('favicon_path', 'assets/images/favicon.ico', 'branding')
+  : 'assets/images/favicon.ico';
 
-$appName = $settingValue('app_name', 'SIB-K', 'general');
-$schoolName = $settingValue('school_name', $envValue('school.name', ''), 'general');
-$logoPath = $settingValue('logo_path', 'assets/images/logo.png', 'branding');
-$faviconPath = $settingValue('favicon_path', 'assets/images/favicon.ico', 'branding');
-
-$logoUrl = $baseUrl($logoPath);
-$faviconUrl = $baseUrl($faviconPath);
+$logoUrl = base_url($logoPath);
+$faviconUrl = base_url($faviconPath);
 
 /**
  * Variabel yang mungkin dikirim CI:
@@ -83,11 +26,8 @@ $faviconUrl = $baseUrl($faviconPath);
  * - $heading, $message
  * Kita buat aman dengan fallback.
  */
-$headingText = $normalizeText($heading ?? ($title ?? 'Terjadi Kesalahan'), 'Terjadi Kesalahan');
-$messageText = $normalizeText(
-  $message ?? 'Sistem sedang mengalami gangguan. Silakan coba lagi beberapa saat.',
-  'Sistem sedang mengalami gangguan. Silakan coba lagi beberapa saat.'
-);
+$headingText = $heading ?? ($title ?? 'Terjadi Kesalahan');
+$messageText = $message ?? 'Sistem sedang mengalami gangguan. Silakan coba lagi beberapa saat.';
 ?>
 <!doctype html>
 <html lang="id">
@@ -146,7 +86,7 @@ $messageText = $normalizeText(
         <p><?= esc(strip_tags($messageText)) ?></p>
 
         <div class="actions">
-          <a class="btn btn-primary" href="<?= esc($baseUrl('/')) ?>">Ke Beranda</a>
+          <a class="btn btn-primary" href="<?= base_url('/') ?>">Ke Beranda</a>
           <button class="btn btn-ghost" type="button" onclick="location.reload()">Muat Ulang</button>
         </div>
 
