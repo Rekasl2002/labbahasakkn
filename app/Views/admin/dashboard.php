@@ -4,7 +4,7 @@
 
 <?php if ($activeSession): ?>
   <?= view('layout/partials/sidebar_left', ['role' => 'admin', 'state' => $state]) ?>
-  <?= view('layout/partials/sidebar_right', ['role' => 'admin']) ?>
+  <?= view('layout/partials/sidebar_right', ['role' => 'admin', 'state' => $state]) ?>
 <?php endif; ?>
 
 <div class="dashboard-center">

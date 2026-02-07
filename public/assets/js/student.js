@@ -11,6 +11,7 @@
   const materialViewer = document.getElementById('materialViewer');
   const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
   const broadcastBox = document.getElementById('broadcastBox');
+  const teacherTextBox = document.getElementById('teacherTextBox');
 
   // Voice UI
   const btnEnableAudio = document.getElementById('btnEnableAudio');
@@ -41,6 +42,14 @@
     devicePermissionAsked: false,
     autoInitDone: false,
     devices: { inputs: [], outputs: [] },
+    broadcastText: '',
+    materialText: '',
+    activeTextSource: '',
+    currentMaterialId: 0,
+    lastFile: null,
+    materialChangeFromEvent: false,
+    renderedMaterialId: 0,
+    renderedFileSig: '',
   };
 
   const rtc = {
@@ -821,73 +830,215 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function renderTeacherText(){
+    if(!teacherTextBox) return;
+    const b = (state.broadcastText || '').trim();
+    const t = (state.materialText || '').trim();
+
+    let text = '';
+    if(state.activeTextSource === 'broadcast'){
+      text = b;
+    }else if(state.activeTextSource === 'material'){
+      text = t;
+    }else{
+      text = b || t;
+    }
+
+    if(text){
+      teacherTextBox.textContent = text;
+      teacherTextBox.classList.remove('muted');
+    }else{
+      teacherTextBox.textContent = 'Belum ada teks.';
+      teacherTextBox.classList.add('muted');
+    }
+  }
+
+  function pickActiveText(source){
+    const b = (state.broadcastText || '').trim();
+    const t = (state.materialText || '').trim();
+    if(source === 'broadcast' && b){
+      state.activeTextSource = 'broadcast';
+      return;
+    }
+    if(source === 'material' && t){
+      state.activeTextSource = 'material';
+      return;
+    }
+    if(b){
+      state.activeTextSource = 'broadcast';
+      return;
+    }
+    if(t){
+      state.activeTextSource = 'material';
+      return;
+    }
+    state.activeTextSource = '';
+  }
+
   function renderMaterial(cm){
     if(!materialViewer) return;
 
     if(!cm || !cm.material){
       materialViewer.textContent = 'Belum ada materi.';
       materialViewer.classList.add('muted');
+      state.materialText = '';
+      state.currentMaterialId = 0;
+      state.lastFile = null;
+      state.renderedMaterialId = 0;
+      state.renderedFileSig = '';
+      pickActiveText();
+      renderTeacherText();
       return;
     }
 
     const m = cm.material || {};
+    const materialId = Number(m.id || 0);
+    if(materialId && state.currentMaterialId !== materialId){
+      state.currentMaterialId = materialId;
+      state.materialText = '';
+      state.lastFile = null;
+      pickActiveText();
+    }
     const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
     const selected = cm.selected || null;
 
     const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
     const isPdf = (name)=> /\.pdf$/i.test(name||'');
+    const getCoverUrl = (file)=>{
+      if(!file) return '';
+      return file.cover_url_path || file.poster_url_path || file.thumbnail_url_path || '';
+    };
+
+    const renderFileTitle = (filename)=>{
+      if(!filename) return '';
+      return `<div class="fileTitle">${esc(filename)}</div>`;
+    };
+
+    const simplePdfUrl = (url)=>{
+      if(!url) return url;
+      const base = url.split('#')[0];
+      return base + '#toolbar=0&navpanes=0&scrollbar=0';
+    };
+
     const renderFilePreview = (file)=>{
       if(!file || !file.url_path) return '';
       const mime = (file.mime||'').toLowerCase();
-      const url = esc(file.url_path);
-      const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
+      const rawUrl = (file.url_path || '').toString();
+      const rawPreviewUrl = (file.preview_url_path || '').toString();
+      const url = esc(rawUrl);
+      const previewUrl = rawPreviewUrl ? esc(rawPreviewUrl) : '';
       const filename = file.filename || 'file';
       const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
+      const coverUrl = getCoverUrl(file);
 
       if(mime.startsWith('audio/')){
-        return `<div>
+        return `<div class="mediaBlock">
+          ${renderFileTitle(filename)}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
           <audio class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="width:100%" playsinline tabindex="-1"></audio>
           <div class="muted">Audio dikendalikan oleh admin.</div>
         </div>`;
       }
       if(mime.startsWith('video/')){
-        return `<div>
-          <video class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="max-width:100%" playsinline tabindex="-1"></video>
+        const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
+        return `<div class="mediaBlock">
+          ${renderFileTitle(filename)}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          <video class="mediaLocked" data-student-media="1"${fileIdAttr}${poster} src="${url}" style="max-width:100%" playsinline tabindex="-1"></video>
           <div class="muted">Video dikendalikan oleh admin.</div>
         </div>`;
       }
       if(mime.startsWith('image/')){
-        return `<img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">`;
+        return `<div class="mediaBlock">
+          ${renderFileTitle(filename)}
+          <img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">
+        </div>`;
       }
       if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
-        const pdfUrl = previewUrl || url;
-        return `<iframe src="${pdfUrl}" style="width:100%;height:520px;border:0"></iframe>`;
+        const pdfUrl = esc(simplePdfUrl(rawPreviewUrl || rawUrl));
+        return `<div class="docSimple">
+          <div class="fileTitle">${esc(filename)}</div>
+          <iframe class="docFrame simple" src="${pdfUrl}"></iframe>
+        </div>`;
       }
       if(isOfficeDoc(filename) || isOfficeDoc(url)){
-        return `<div class="muted">Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.</div>
-          <div><a href="${url}" target="_blank">Buka file</a></div>`;
+        return `<div class="docSimple">
+          <div class="fileTitle">${esc(filename)}</div>
+          <div class="muted tiny" style="margin-top:8px">
+            Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
+          </div>
+          <div style="margin-top:8px">
+            <a class="btn tiny" href="${url}" target="_blank">Buka</a>
+          </div>
+        </div>`;
       }
-      return `<div><a href="${url}" target="_blank">Buka file: ${esc(filename)}</a></div>`;
+      return `<div class="mediaBlock">
+        ${renderFileTitle(filename)}
+        <div><a href="${url}" target="_blank">Buka file</a></div>
+      </div>`;
     };
 
-    let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
-    html += `<div style="margin-top:8px">`;
+    let teacherText = '';
     if(selected && selected.type === 'text'){
-      html += `<div class="materialText">${esc(selected.text||'')}</div>`;
-    }else if(selected && selected.type === 'file'){
-      html += renderFilePreview(selected.file);
+      teacherText = selected.text || '';
     }else if(m.type === 'text' && m.text_content){
-      html += `<pre style="white-space:pre-wrap;margin:0">${esc(m.text_content||'')}</pre>`;
-    }else if(files.length){
-      html += renderFilePreview(files[0]);
-    }else{
-      html += `<div class="muted">Admin belum memilih item materi.</div>`;
+      teacherText = m.text_content || '';
     }
-    html += `</div>`;
+    if(teacherText){
+      state.materialText = teacherText;
+      const hasBroadcast = (state.broadcastText || '').trim() !== '';
+      const allowOverride = state.materialChangeFromEvent || !hasBroadcast || state.activeTextSource !== 'broadcast';
+      if(allowOverride){
+        pickActiveText('material');
+      }
+    }
+    renderTeacherText();
 
-    materialViewer.innerHTML = html;
-    clearMediaUnlock();
-    materialViewer.classList.remove('muted');
+    let selectedFile = null;
+    if(selected && selected.type === 'file' && selected.file){
+      selectedFile = selected.file;
+      state.lastFile = selected.file;
+    }else if(state.lastFile){
+      const stillExists = files.find(f=> Number(f.id) === Number(state.lastFile.id));
+      if(stillExists) selectedFile = stillExists;
+    }else if(files.length){
+      selectedFile = files[0];
+      state.lastFile = files[0];
+    }
+
+    const fileSig = selectedFile
+      ? [
+          selectedFile.id || '',
+          selectedFile.url_path || '',
+          selectedFile.preview_url_path || '',
+          selectedFile.cover_url_path || '',
+          selectedFile.mime || '',
+        ].join('|')
+      : '';
+    const shouldUpdateViewer = (
+      state.renderedMaterialId !== materialId ||
+      state.renderedFileSig !== fileSig
+    );
+
+    if(shouldUpdateViewer){
+      let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
+      html += `<div style="margin-top:8px">`;
+      if(selectedFile){
+        html += renderFilePreview(selectedFile);
+      }else if(files.length){
+        html += renderFilePreview(files[0]);
+      }else{
+        html += `<div class="muted">Belum ada file materi.</div>`;
+      }
+      html += `</div>`;
+
+      materialViewer.innerHTML = html;
+      clearMediaUnlock();
+      materialViewer.classList.remove('muted');
+      state.renderedMaterialId = materialId;
+      state.renderedFileSig = fileSig;
+    }
+    state.materialChangeFromEvent = false;
   }
 
   function getStudentMedia(){
@@ -972,8 +1123,16 @@
     if(data && data.ok){
       renderMaterial(data.currentMaterial);
 
-      if(data.state && broadcastBox){
-        broadcastBox.textContent = data.state.broadcast_text || '';
+      if(data.state){
+        const prevBroadcast = state.broadcastText;
+        state.broadcastText = data.state.broadcast_text || '';
+        if(broadcastBox) broadcastBox.textContent = state.broadcastText;
+        if(prevBroadcast !== state.broadcastText){
+          pickActiveText('broadcast');
+        }else if(!state.activeTextSource){
+          pickActiveText();
+        }
+        renderTeacherText();
       }
     }
   }
@@ -998,8 +1157,16 @@
       autoInitAudio(true).catch(()=>{});
     }
 
-    if(snap && snap.state && broadcastBox){
-      broadcastBox.textContent = snap.state.broadcast_text || '';
+    if(snap && snap.state){
+      const prevBroadcast = state.broadcastText;
+      state.broadcastText = snap.state.broadcast_text || '';
+      if(broadcastBox) broadcastBox.textContent = state.broadcastText;
+      if(prevBroadcast !== state.broadcastText){
+        pickActiveText('broadcast');
+      }else if(!state.activeTextSource){
+        pickActiveText();
+      }
+      renderTeacherText();
     }
 
     if(snap && snap.state){
@@ -1124,10 +1291,14 @@
       }
 
       if(t === 'broadcast_text_changed'){
-        if(broadcastBox) broadcastBox.textContent = p.broadcast_text || '';
+        state.broadcastText = p.broadcast_text || '';
+        if(broadcastBox) broadcastBox.textContent = state.broadcastText;
+        pickActiveText('broadcast');
+        renderTeacherText();
       }
 
       if(t === 'material_changed'){
+        state.materialChangeFromEvent = true;
         refreshMaterial();
       }
 

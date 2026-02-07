@@ -202,6 +202,23 @@ body.embed-modal .container{
   font-weight:600;
 }
 
+.btnGroup{
+  display:inline-flex;
+  align-items:center;
+}
+.btnGroup .btn{
+  border-radius:0;
+}
+.btnGroup .btn:first-child{
+  border-top-left-radius:10px;
+  border-bottom-left-radius:10px;
+}
+.btnGroup .btn:last-child{
+  border-top-right-radius:10px;
+  border-bottom-right-radius:10px;
+  margin-left:-1px;
+}
+
 /* settings modal */
 .modal{
   position:fixed;
@@ -225,6 +242,21 @@ body.embed-modal .container{
   overflow:hidden;
   display:flex;
   flex-direction:column;
+}
+.modal-preview{
+  height:min(92vh,900px);
+}
+.modal-preview-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 48px 10px 12px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.modal-title{
+  font-weight:600;
 }
 .modal-close{
   position:absolute;
@@ -270,6 +302,72 @@ body.embed-modal .container{
   background:var(--panel2);
   border-color:rgba(255,255,255,.25);
   font-weight:600;
+}
+
+.fileTitle{
+  font-weight:600;
+  font-size:14px;
+}
+.mediaBlock{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.mediaCover{
+  width:100%;
+  max-height:220px;
+  object-fit:cover;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#101515;
+}
+.docPreview{
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+  background:var(--panel);
+}
+.docPreviewHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:8px 10px;
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.04);
+}
+.docPreviewHeader .fileTitle{
+  flex:1;
+  min-width:200px;
+}
+.docPreviewBody{
+  padding:8px;
+  background:rgba(0,0,0,.08);
+}
+.docFrame{
+  width:100%;
+  height:520px;
+  border:0;
+  background:#ffffff;
+}
+.docFrame.small{
+  height:220px;
+}
+.docFrame.simple{
+  height:480px;
+}
+.docSimple{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background:var(--panel2);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.teacherTextItem + .teacherTextItem{
+  margin-top:8px;
 }
 .lab-sidebar-head{
   padding:10px 12px;

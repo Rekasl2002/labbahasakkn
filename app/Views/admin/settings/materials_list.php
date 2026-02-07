@@ -9,7 +9,7 @@ $embedQuery = $embed ? '&embed=1' : '';
     <h2 style="margin:0">Manajemen Materi</h2>
     <div class="muted tiny" style="margin-top:4px">Pilih materi untuk dibroadcast, edit, atau hapus.</div>
   </div>
-  <a class="btn" href="/admin/settings?tab=materials<?= $embedQuery ?>">+ Tambah Materi</a>
+  <a class="btn" href="/admin/settings?tab=materials&mat=add<?= $embedQuery ?>">+ Tambah Materi</a>
 </div>
 
 <?php if (empty($materials)): ?>
@@ -30,7 +30,7 @@ $embedQuery = $embed ? '&embed=1' : '';
               <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
               <button type="submit">Broadcast</button>
             </form>
-            <a class="btn" href="/admin/settings?tab=materials&edit_id=<?= (int)$m['id'] ?><?= $embedQuery ?>">Edit</a>
+            <a class="btn" href="/admin/settings?tab=materials&mat=edit&edit_id=<?= (int)$m['id'] ?><?= $embedQuery ?>">Edit</a>
             <form method="post" action="/admin/materials/delete/<?= (int)$m['id'] ?>" onsubmit="return confirm('Hapus materi?')">
               <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
               <button class="danger" type="submit">Hapus</button>

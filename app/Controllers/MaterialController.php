@@ -12,17 +12,17 @@ class MaterialController extends BaseController
 {
     public function index()
     {
-        return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery());
+        return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery());
     }
 
     public function create()
     {
-        return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery());
+        return redirect()->to('/admin/settings?tab=materials&mat=add' . $this->embedQuery());
     }
 
     public function edit(int $id)
     {
-        return redirect()->to('/admin/settings?tab=materials&edit_id=' . $id . $this->embedQuery());
+        return redirect()->to('/admin/settings?tab=materials&mat=edit&edit_id=' . $id . $this->embedQuery());
     }
 
     public function store()
@@ -76,14 +76,18 @@ class MaterialController extends BaseController
             }
         }
 
-        return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('ok', 'Materi dibuat.');
+        return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+            ->with('ok', 'Materi berhasil ditambahkan.');
     }
 
     public function update(int $id)
     {
         $materialModel = new MaterialModel();
         $material = $materialModel->find($id);
-        if (!$material) return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('error', 'Materi tidak ditemukan.');
+        if (!$material) {
+            return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+                ->with('error', 'Materi tidak ditemukan.');
+        }
 
         $title = trim((string) $this->request->getPost('title'));
         $type  = (string) $this->request->getPost('type');
@@ -103,7 +107,8 @@ class MaterialController extends BaseController
 
         if ($type === 'text') {
             $this->deleteAllMaterialFiles($id);
-            return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('ok', 'Materi diupdate.');
+            return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+                ->with('ok', 'Materi berhasil diedit.');
         }
 
         // optional: upload file baru (single)
@@ -122,7 +127,7 @@ class MaterialController extends BaseController
             }
             // Pastikan hanya 1 file untuk type "file"
             $mf = new MaterialFileModel();
-            $existing = $mf->where('material_id', $id)->orderBy('sort_order', 'ASC')->orderBy('id', 'ASC')->findAll();
+            $existing = $mf->orderedForMaterial($id)->findAll();
             if (count($existing) > 1) {
                 $keep = array_shift($existing);
                 foreach ($existing as $row) {
@@ -160,29 +165,32 @@ class MaterialController extends BaseController
             }
         }
 
-        return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('ok', 'Materi diupdate.');
+        return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+            ->with('ok', 'Materi berhasil diedit.');
     }
 
     public function delete(int $id)
     {
         $this->deleteAllMaterialFiles($id);
         (new MaterialModel())->delete($id);
-        return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('ok', 'Materi dihapus.');
+        return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+            ->with('ok', 'Materi dihapus.');
     }
 
     public function broadcast(int $id)
     {
         $session = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
-        if (!$session) return redirect()->to('/admin/settings?tab=materials' . $this->embedQuery())->with('error', 'Tidak ada sesi aktif.');
+        if (!$session) {
+            return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
+                ->with('error', 'Tidak ada sesi aktif.');
+        }
 
         $stateModel = new SessionStateModel();
         $stateModel->setCurrentMaterial($session['id'], $id);
 
         $material = (new MaterialModel())->find($id);
         $files = (new MaterialFileModel())
-            ->where('material_id', $id)
-            ->orderBy('sort_order', 'ASC')
-            ->orderBy('id', 'ASC')
+            ->orderedForMaterial($id)
             ->findAll();
         $textItems = [];
         if ($material && ($material['type'] ?? '') === 'folder') {
@@ -212,7 +220,7 @@ class MaterialController extends BaseController
         ]);
 
         if ($this->embedQuery() !== '') {
-            return redirect()->to('/admin/settings?tab=materials&embed=1')->with('ok', 'Materi dibroadcast.');
+            return redirect()->to('/admin/settings?tab=materials&mat=list&embed=1')->with('ok', 'Materi dibroadcast.');
         }
         return redirect()->to('/admin')->with('ok', 'Materi dibroadcast.');
     }
@@ -233,23 +241,45 @@ class MaterialController extends BaseController
         }
         $file->move($targetDir, $safeName);
 
-        $previewUrl = $this->maybeConvertOfficeToPdf($targetDir . DIRECTORY_SEPARATOR . $safeName, $safeName);
-        $finalSort = $sortOrder ?? $this->getNextSortOrder($materialId);
+        $db = db_connect();
+        $hasSort = $db->fieldExists('sort_order', 'material_files');
+        $hasPreview = $db->fieldExists('preview_url_path', 'material_files');
+        $hasCover = $db->fieldExists('cover_url_path', 'material_files');
 
-        (new MaterialFileModel())->insert([
+        $mime = $file->getClientMimeType();
+        $previewUrl = $this->maybeConvertOfficeToPdf($targetDir . DIRECTORY_SEPARATOR . $safeName, $safeName);
+        $coverUrl = $hasCover
+            ? $this->maybeExtractMediaCover($targetDir . DIRECTORY_SEPARATOR . $safeName, $safeName, $mime)
+            : null;
+        $finalSort = $hasSort ? ($sortOrder ?? $this->getNextSortOrder($materialId)) : null;
+
+        $data = [
             'material_id' => $materialId,
-            'sort_order' => $finalSort,
             'filename' => $file->getClientName(),
-            'mime' => $file->getClientMimeType(),
+            'mime' => $mime,
             'size' => $file->getSize(),
             'url_path' => '/uploads/materials/' . $safeName,
-            'preview_url_path' => $previewUrl,
             'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if ($hasSort) {
+            $data['sort_order'] = $finalSort;
+        }
+        if ($hasPreview) {
+            $data['preview_url_path'] = $previewUrl;
+        }
+        if ($hasCover) {
+            $data['cover_url_path'] = $coverUrl;
+        }
+
+        (new MaterialFileModel())->insert($data);
     }
 
     private function getNextSortOrder(int $materialId): int
     {
+        $db = db_connect();
+        if (!$db->fieldExists('sort_order', 'material_files')) {
+            return 1;
+        }
         $mf = new MaterialFileModel();
         $row = $mf->selectMax('sort_order', 'max_sort')->where('material_id', $materialId)->first();
         $max = isset($row['max_sort']) ? (int) $row['max_sort'] : 0;
@@ -297,10 +327,23 @@ class MaterialController extends BaseController
                 @unlink($previewPath);
             }
         }
+
+        $cover = (string) ($row['cover_url_path'] ?? '');
+        if ($cover !== '' && str_starts_with($cover, '/uploads/materials/')) {
+            $coverPath = ROOTPATH . 'public' . $cover;
+            if (is_file($coverPath)) {
+                @unlink($coverPath);
+            }
+        }
     }
 
     private function applyFileOrder(int $materialId, array $orderIds): void
     {
+        $db = db_connect();
+        if (!$db->fieldExists('sort_order', 'material_files')) {
+            return;
+        }
+
         $ids = array_values(array_filter(array_map('intval', $orderIds), static fn($v) => $v > 0));
         if (empty($ids)) return;
 
@@ -342,5 +385,53 @@ class MaterialController extends BaseController
         if (!is_file($pdfPath)) return null;
 
         return '/uploads/materials/' . $pdfName;
+    }
+
+    private function maybeExtractMediaCover(string $filePath, string $safeName, string $mime): ?string
+    {
+        $mime = strtolower($mime);
+        if (!str_starts_with($mime, 'audio/') && !str_starts_with($mime, 'video/')) {
+            return null;
+        }
+
+        $bin = (string) getenv('FFMPEG_BIN');
+        if ($bin === '') {
+            $bin = 'ffmpeg';
+            $candidates = [
+                'C:\\ffmpeg\\bin\\ffmpeg.exe',
+                'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+                'C:\\Program Files\\FFmpeg\\bin\\ffmpeg.exe',
+            ];
+            foreach ($candidates as $candidate) {
+                if (is_file($candidate)) {
+                    $bin = $candidate;
+                    break;
+                }
+            }
+        }
+
+        $coverDir = ROOTPATH . 'public/uploads/materials/covers';
+        if (!is_dir($coverDir)) {
+            @mkdir($coverDir, 0775, true);
+        }
+
+        $base = pathinfo($safeName, PATHINFO_FILENAME);
+        $coverName = $base . '_cover.jpg';
+        $coverPath = $coverDir . DIRECTORY_SEPARATOR . $coverName;
+
+        $cmd = '"' . $bin . '" -y -i ' . escapeshellarg($filePath) . ' -an -frames:v 1 -q:v 2 ' . escapeshellarg($coverPath);
+        $output = [];
+        $code = 0;
+        @exec($cmd . ' 2>&1', $output, $code);
+        if ($code !== 0 || !is_file($coverPath)) {
+            return null;
+        }
+
+        if (filesize($coverPath) <= 0) {
+            @unlink($coverPath);
+            return null;
+        }
+
+        return '/uploads/materials/covers/' . $coverName;
     }
 }

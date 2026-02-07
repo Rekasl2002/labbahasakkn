@@ -95,21 +95,6 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
         </div>
       </section>
 
-      <section class="card">
-        <h2 style="margin:0 0 6px">Quick Broadcast</h2>
-        <label class="muted tiny" for="broadcastText">Pesan singkat</label>
-        <input
-          id="broadcastText"
-          placeholder="Kata/kalimat singkat untuk ditampilkan ke semua siswa..."
-          value="<?= esc($state['broadcast_text'] ?? '') ?>"
-          maxlength="255"
-          autocomplete="off"
-        >
-        <button id="btnBroadcastText" type="button" style="margin-top:8px">📢 Broadcast</button>
-        <p class="muted tiny" style="margin:8px 0 0">
-          Broadcast ini untuk teks singkat. Voice realtime berjalan otomatis (voice room).
-        </p>
-      </section>
       <div class="lab-sidebar-spacer"></div>
       <section class="lab-sidebar-audio">
         <div class="lab-sidebar-audio-title">Audio Admin</div>

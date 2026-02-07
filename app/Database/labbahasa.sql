@@ -111,17 +111,18 @@ CREATE TABLE `materials` (
 -- Struktur dari tabel `material_files`
 --
 
-CREATE TABLE `material_files` (
-  `id` int UNSIGNED NOT NULL,
-  `material_id` int UNSIGNED NOT NULL,
-  `sort_order` int NOT NULL DEFAULT '0',
-  `filename` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `mime` varchar(120) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `size` int UNSIGNED DEFAULT NULL,
-  `url_path` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `preview_url_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `created_at` datetime DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CREATE TABLE `material_files` (
+    `id` int UNSIGNED NOT NULL,
+    `material_id` int UNSIGNED NOT NULL,
+    `sort_order` int NOT NULL DEFAULT '0',
+    `filename` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+    `mime` varchar(120) COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `size` int UNSIGNED DEFAULT NULL,
+    `url_path` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+    `preview_url_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `cover_url_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `created_at` datetime DEFAULT NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 

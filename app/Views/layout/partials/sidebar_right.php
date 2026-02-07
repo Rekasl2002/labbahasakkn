@@ -5,6 +5,7 @@ $userName = $role === 'admin'
     ? (session('admin_username') ?: 'Admin')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
+$state = $state ?? [];
 ?>
 
 <?php if ($role === 'student'): ?>
@@ -83,11 +84,35 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
       <section class="card">
         <div class="row between wrap gap" style="align-items:flex-end">
           <div>
+            <h2 style="margin:0">Teks dari Guru</h2>
+            <div class="muted tiny" style="margin-top:4px">
+              Teks/pesan singkat yang ditampilkan ke semua siswa.
+            </div>
+          </div>
+        </div>
+
+        <label class="muted tiny" for="broadcastText" style="margin-top:8px;display:block">Pesan singkat</label>
+        <input
+          id="broadcastText"
+          placeholder="Kata/kalimat singkat untuk ditampilkan ke semua siswa..."
+          value="<?= esc($state['broadcast_text'] ?? '') ?>"
+          maxlength="255"
+          autocomplete="off"
+        >
+        <button id="btnBroadcastText" type="button" style="margin-top:8px">📢 Broadcast</button>
+        <p class="muted tiny" style="margin:8px 0 0">
+          Teks ini tidak mengganti materi. Hanya tampil di panel "Teks dari Guru".
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="row between wrap gap" style="align-items:flex-end">
+          <div>
             <h2 style="margin:0">Materi Aktif</h2>
             <div class="muted tiny" style="margin-top:4px">Ditampilkan di halaman siswa.</div>
           </div>
-          <div class="row gap wrap" style="align-items:center">
-            <a class="btn js-open-settings" href="/admin/settings?tab=materials">Manajemen Materi</a>
+          <div class="btnGroup">
+            <a class="btn js-open-settings" href="/admin/settings?tab=materials&mat=list">Manajemen Materi</a>
             <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
           </div>
         </div>

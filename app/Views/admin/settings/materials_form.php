@@ -13,7 +13,7 @@ $embedQuery = $embed ? '&embed=1' : '';
     <div class="muted tiny" style="margin-top:4px">Materi akan tampil di halaman siswa saat dibroadcast.</div>
   </div>
   <?php if ($mode === 'edit'): ?>
-    <a class="btn" href="/admin/settings?tab=materials<?= $embedQuery ?>">+ Materi Baru</a>
+    <a class="btn" href="/admin/settings?tab=materials&mat=add<?= $embedQuery ?>">+ Materi Baru</a>
   <?php endif; ?>
 </div>
 
@@ -74,7 +74,7 @@ $embedQuery = $embed ? '&embed=1' : '';
 
   <div class="row gap">
     <button type="submit">Simpan</button>
-    <a class="btn" href="/admin/settings?tab=materials<?= $embedQuery ?>">Batal</a>
+    <a class="btn" href="/admin/settings?tab=materials&mat=list<?= $embedQuery ?>">Batal</a>
   </div>
 </form>
 

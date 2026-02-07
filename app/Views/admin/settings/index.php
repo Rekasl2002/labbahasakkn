@@ -9,6 +9,7 @@ $material = $material ?? null;
 $file = $file ?? null;
 $files = $files ?? [];
 $tab = $tab ?? 'auto-detect';
+$materialsTab = $materialsTab ?? 'list';
 ?>
 
 <?= view('layout/partials/sidebar_left_settings', ['role' => 'admin', 'tab' => $tab]) ?>
@@ -63,18 +64,37 @@ $tab = $tab ?? 'auto-detect';
       </form>
     </section>
   <?php else: ?>
-    <section class="card">
-      <?= view('admin/settings/materials_list', ['materials' => $materials]) ?>
-    </section>
+    <div class="settingsTabs">
+      <a class="settingsTab <?= $materialsTab === 'list' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list">Manajemen Materi</a>
+      <a class="settingsTab <?= $materialsTab === 'add' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=add">Tambah Materi</a>
+      <?php if ($materialsTab === 'edit' && !empty($material)): ?>
+        <span class="settingsTab active">Edit Materi</span>
+      <?php endif; ?>
+    </div>
 
-    <section class="card" style="margin-top:12px">
-      <?= view('admin/settings/materials_form', [
-        'mode' => $mode,
-        'material' => $material,
-        'file' => $file,
-        'files' => $files,
-      ]) ?>
-    </section>
+    <?php if ($materialsTab === 'list'): ?>
+      <section class="card">
+        <?= view('admin/settings/materials_list', ['materials' => $materials]) ?>
+      </section>
+    <?php elseif ($materialsTab === 'add'): ?>
+      <section class="card">
+        <?= view('admin/settings/materials_form', [
+          'mode' => 'create',
+          'material' => $material,
+          'file' => $file,
+          'files' => $files,
+        ]) ?>
+      </section>
+    <?php else: ?>
+      <section class="card">
+        <?= view('admin/settings/materials_form', [
+          'mode' => $mode,
+          'material' => $material,
+          'file' => $file,
+          'files' => $files,
+        ]) ?>
+      </section>
+    <?php endif; ?>
   <?php endif; ?>
 
   <div style="margin-top:12px">

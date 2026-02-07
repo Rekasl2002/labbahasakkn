@@ -35,14 +35,13 @@ class MaterialApi extends BaseController
         if (!$material) return null;
 
         $files = (new MaterialFileModel())
-            ->where('material_id', $material['id'])
-            ->orderBy('sort_order', 'ASC')
-            ->orderBy('id', 'ASC')
+            ->orderedForMaterial((int) $material['id'])
             ->findAll();
 
         foreach ($files as &$f) {
             if (isset($f['url_path'])) $f['url_path'] = (string) $f['url_path'];
             if (isset($f['preview_url_path'])) $f['preview_url_path'] = (string) $f['preview_url_path'];
+            if (isset($f['cover_url_path'])) $f['cover_url_path'] = (string) $f['cover_url_path'];
         }
         unset($f);
 

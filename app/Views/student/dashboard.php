@@ -28,7 +28,7 @@
 
   </div>
 
-  <!-- CENTER: VOICE + BROADCAST -->
+  <!-- CENTER: VOICE -->
   <section class="card" style="margin-top:14px">
     <h2 style="margin:0">Voice / Speaker</h2>
 
@@ -43,16 +43,24 @@
       Catatan: mic/speaker WebRTC butuh HTTPS (atau localhost).
     </div>
 
-    <hr>
-
-    <h2 style="margin:0">Quick Broadcast</h2>
-    <div id="broadcastBox" class="broadcastBox" style="margin-top:10px">
-      <?= esc($state['broadcast_text'] ?? '') ?>
-    </div>
-
     <noscript>
       <p class="danger">JavaScript wajib aktif untuk voice dan polling.</p>
     </noscript>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <div class="row between wrap gap" style="align-items:flex-end">
+      <div>
+        <h2 style="margin:0">Teks Materi</h2>
+        <div class="muted tiny" style="margin-top:4px">
+          Menampilkan teks yang sedang dipilih.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <div id="teacherTextBox" class="broadcastBox muted">Belum ada teks.</div>
+    </div>
   </section>
 
   <section class="card" style="margin-top:14px">

@@ -39,10 +39,15 @@ if ($role === 'admin') {
       <h2 style="margin:0 0 8px">Pilih Pengaturan</h2>
       <nav class="lab-sidebar-nav">
         <?php foreach ($links as $key => $label): ?>
-          <a
-            class="lab-sidebar-link <?= $tab === $key ? 'active' : '' ?>"
-            href="<?= $role === 'admin' ? '/admin/settings?tab=' . esc($key) : '/student/settings?tab=' . esc($key) ?>"
-          >
+          <?php
+            $baseHref = $role === 'admin'
+                ? '/admin/settings?tab=' . esc($key)
+                : '/student/settings?tab=' . esc($key);
+            if ($role === 'admin' && $key === 'materials') {
+                $baseHref .= '&mat=list';
+            }
+          ?>
+          <a class="lab-sidebar-link <?= $tab === $key ? 'active' : '' ?>" href="<?= $baseHref ?>">
             <?= esc($label) ?>
           </a>
         <?php endforeach; ?>

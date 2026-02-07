@@ -27,13 +27,13 @@
   const chatInput = document.getElementById('chatInput');
   const btnSendChat = document.getElementById('btnSendChat');
   const chatModeSel = document.getElementById('chatMode');
-  const privateTargetSel = document.getElementById('privateTarget');
-  const broadcastInput = document.getElementById('broadcastText');
-  const btnBroadcast = document.getElementById('btnBroadcastText');
-  const chkAllowStudentMic = document.getElementById('chkAllowStudentMic');
-  const chkAllowStudentSpk = document.getElementById('chkAllowStudentSpk');
-  const matBox = document.getElementById('currentMaterialBox');
-  const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
+    const privateTargetSel = document.getElementById('privateTarget');
+    const broadcastInput = document.getElementById('broadcastText');
+    const btnBroadcast = document.getElementById('btnBroadcastText');
+    const chkAllowStudentMic = document.getElementById('chkAllowStudentMic');
+    const chkAllowStudentSpk = document.getElementById('chkAllowStudentSpk');
+    const matBox = document.getElementById('currentMaterialBox');
+    const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
 
   // Voice (WebRTC)
   const callStatusEl = document.getElementById('callStatus');
@@ -1006,35 +1006,83 @@
       else if(m.type === 'text' && m.text_content) selected = {type:'text', text: m.text_content};
     }
 
-    const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
-    const isPdf = (name)=> /\.pdf$/i.test(name||'');
-    const renderFilePreview = (file)=>{
-      if(!file || !file.url_path) return '';
-      const mime = (file.mime||'').toLowerCase();
-      const url = esc(file.url_path);
-      const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
-      const filename = file.filename || 'file';
-      const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
+      const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
+      const isPdf = (name)=> /\.pdf$/i.test(name||'');
+      const getCoverUrl = (file)=>{
+        if(!file) return '';
+        return file.cover_url_path || file.poster_url_path || file.thumbnail_url_path || '';
+      };
+      const renderFileTitle = (filename)=>{
+        if(!filename) return '';
+        return `<div class="fileTitle">${esc(filename)}</div>`;
+      };
+      const renderFilePreview = (file)=>{
+        if(!file || !file.url_path) return '';
+        const mime = (file.mime||'').toLowerCase();
+        const url = esc(file.url_path);
+        const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
+        const filename = file.filename || 'file';
+        const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
+        const coverUrl = getCoverUrl(file);
 
-      if(mime.startsWith('audio/')){
-        return `<audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>`;
-      }
-      if(mime.startsWith('video/')){
-        return `<video data-admin-media="1"${fileIdAttr} controls src="${url}" style="max-width:100%"></video>`;
-      }
-      if(mime.startsWith('image/')){
-        return `<img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">`;
-      }
-      if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
-        const pdfUrl = previewUrl || url;
-        return `<iframe src="${pdfUrl}" style="width:100%;height:220px;border:0"></iframe>`;
-      }
-      if(isOfficeDoc(filename) || isOfficeDoc(url)){
-        return `<div class="muted tiny">Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.</div>
-          <div><a href="${url}" target="_blank">Buka file</a></div>`;
-      }
-      return `<div><a href="${url}" target="_blank">Buka file: ${esc(filename)}</a></div>`;
-    };
+        if(mime.startsWith('audio/')){
+          return `<div class="mediaBlock">
+            ${renderFileTitle(filename)}
+            ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+            <audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>
+          </div>`;
+        }
+        if(mime.startsWith('video/')){
+          const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
+          return `<div class="mediaBlock">
+            ${renderFileTitle(filename)}
+            ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+            <video data-admin-media="1"${fileIdAttr}${poster} controls src="${url}" style="max-width:100%"></video>
+          </div>`;
+        }
+        if(mime.startsWith('image/')){
+          return `<div class="mediaBlock">
+            <div class="row between wrap gap" style="align-items:center">
+              ${renderFileTitle(filename)}
+              <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
+            </div>
+            <img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">
+          </div>`;
+        }
+        if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
+          const pdfUrl = previewUrl || url;
+          return `<div class="docPreview">
+            <div class="docPreviewHeader">
+              ${renderFileTitle(filename)}
+              <div class="row gap">
+                <button class="btn tiny" type="button" data-preview-url="${pdfUrl}" data-preview-title="${esc(filename)}">Perbesar</button>
+                <a class="btn tiny" href="${pdfUrl}" target="_blank">Buka</a>
+              </div>
+            </div>
+            <div class="docPreviewBody">
+              <iframe class="docFrame small" src="${pdfUrl}"></iframe>
+            </div>
+          </div>`;
+        }
+        if(isOfficeDoc(filename) || isOfficeDoc(url)){
+          return `<div class="docPreview">
+            <div class="docPreviewHeader">
+              ${renderFileTitle(filename)}
+              <div class="row gap">
+                <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
+                <a class="btn tiny" href="${url}" target="_blank">Buka</a>
+              </div>
+            </div>
+            <div class="muted tiny" style="margin-top:8px">
+              Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
+            </div>
+          </div>`;
+        }
+        return `<div class="mediaBlock">
+          ${renderFileTitle(filename)}
+          <div><a href="${url}" target="_blank">Buka file</a></div>
+        </div>`;
+      };
 
     let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
     html += `<div style="margin-top:8px">`;

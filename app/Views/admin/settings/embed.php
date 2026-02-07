@@ -8,6 +8,7 @@ $material = $material ?? null;
 $file = $file ?? null;
 $files = $files ?? [];
 $tab = $tab ?? 'auto-detect';
+$materialsTab = $materialsTab ?? 'list';
 $embed = true;
 ?>
 
@@ -23,7 +24,7 @@ $embed = true;
 <div class="settingsTabs">
   <a class="settingsTab <?= $tab === 'auto-detect' ? 'active' : '' ?>" href="/admin/settings?tab=auto-detect&embed=1">Auto-Deteksi</a>
   <a class="settingsTab <?= $tab === 'password' ? 'active' : '' ?>" href="/admin/settings?tab=password&embed=1">Password</a>
-  <a class="settingsTab <?= $tab === 'materials' ? 'active' : '' ?>" href="/admin/settings?tab=materials&embed=1">Materi</a>
+  <a class="settingsTab <?= $tab === 'materials' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list&embed=1">Materi</a>
 </div>
 
 <?php if ($tab === 'auto-detect'): ?>
@@ -68,19 +69,39 @@ $embed = true;
     </form>
   </section>
 <?php else: ?>
-  <section class="card">
-    <?= view('admin/settings/materials_list', ['materials' => $materials, 'embed' => $embed]) ?>
-  </section>
+  <div class="settingsTabs">
+    <a class="settingsTab <?= $materialsTab === 'list' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list&embed=1">Manajemen Materi</a>
+    <a class="settingsTab <?= $materialsTab === 'add' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=add&embed=1">Tambah Materi</a>
+    <?php if ($materialsTab === 'edit' && !empty($material)): ?>
+      <span class="settingsTab active">Edit Materi</span>
+    <?php endif; ?>
+  </div>
 
-  <section class="card" style="margin-top:12px">
-    <?= view('admin/settings/materials_form', [
-      'mode' => $mode,
-      'material' => $material,
-      'file' => $file,
-      'files' => $files,
-      'embed' => $embed,
-    ]) ?>
-  </section>
+  <?php if ($materialsTab === 'list'): ?>
+    <section class="card">
+      <?= view('admin/settings/materials_list', ['materials' => $materials, 'embed' => $embed]) ?>
+    </section>
+  <?php elseif ($materialsTab === 'add'): ?>
+    <section class="card">
+      <?= view('admin/settings/materials_form', [
+        'mode' => 'create',
+        'material' => $material,
+        'file' => $file,
+        'files' => $files,
+        'embed' => $embed,
+      ]) ?>
+    </section>
+  <?php else: ?>
+    <section class="card">
+      <?= view('admin/settings/materials_form', [
+        'mode' => $mode,
+        'material' => $material,
+        'file' => $file,
+        'files' => $files,
+        'embed' => $embed,
+      ]) ?>
+    </section>
+  <?php endif; ?>
 <?php endif; ?>
 
 <?= $this->endSection() ?>

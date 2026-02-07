@@ -44,11 +44,20 @@ class AdminController extends BaseController
         $embed = (string) $this->request->getGet('embed') === '1';
 
         $editId = (int) $this->request->getGet('edit_id');
+        $materialsTab = (string) $this->request->getGet('mat');
+        $allowedMaterialsTabs = ['list', 'add', 'edit'];
+        if (!in_array($materialsTab, $allowedMaterialsTabs, true)) {
+            $materialsTab = '';
+        }
         if ($editId > 0) {
             $tab = 'materials';
+            $materialsTab = 'edit';
         }
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'auto-detect';
+        }
+        if ($tab === 'materials' && $materialsTab === '') {
+            $materialsTab = 'list';
         }
 
         $material = null;
@@ -59,17 +68,25 @@ class AdminController extends BaseController
 
         if ($tab === 'materials') {
             $materials = (new MaterialModel())->orderBy('id', 'DESC')->findAll();
-            if ($editId > 0) {
-                $material = (new MaterialModel())->find($editId);
-                if ($material) {
-                    $mode = 'edit';
-                    $files = (new MaterialFileModel())
-                        ->where('material_id', $editId)
-                        ->orderBy('sort_order', 'ASC')
-                        ->orderBy('id', 'ASC')
-                        ->findAll();
-                    $file = $files[0] ?? null;
+            if ($materialsTab === 'edit') {
+                if ($editId <= 0) {
+                    $embedQuery = $embed ? '&embed=1' : '';
+                    return redirect()->to('/admin/settings?tab=materials&mat=list' . $embedQuery)
+                        ->with('error', 'Materi tidak ditemukan.');
                 }
+                $material = (new MaterialModel())->find($editId);
+                if (!$material) {
+                    $embedQuery = $embed ? '&embed=1' : '';
+                    return redirect()->to('/admin/settings?tab=materials&mat=list' . $embedQuery)
+                        ->with('error', 'Materi tidak ditemukan.');
+                }
+                $mode = 'edit';
+                $files = (new MaterialFileModel())
+                    ->orderedForMaterial($editId)
+                    ->findAll();
+                $file = $files[0] ?? null;
+            } else {
+                $mode = 'create';
             }
         }
 
@@ -81,6 +98,7 @@ class AdminController extends BaseController
             'file' => $file,
             'files' => $files,
             'tab' => $tab,
+            'materialsTab' => $materialsTab,
             'embed' => $embed,
         ]);
     }
