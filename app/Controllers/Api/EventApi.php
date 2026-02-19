@@ -116,16 +116,29 @@ class EventApi extends BaseController
             return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
         }
 
+        $active = $this->getActiveSessionRaw();
+        $closedByTimeout = $this->closeSessionIfExpired($active);
+        if ($closedByTimeout) {
+            $active = null;
+        }
+
         // Tentukan session_id
         $sessionId = 0;
 
         if ($isAdmin) {
-            $active = (new SessionModel())
-                ->where('is_active', 1)
-                ->orderBy('id', 'DESC')
-                ->first();
-
-            $sessionId = $active ? (int) $active['id'] : 0;
+            if ($active) {
+                $sessionId = (int) $active['id'];
+            } elseif ($closedByTimeout) {
+                // Tetap kirim event `session_ended` sekali ke admin.
+                $sessionId = (int) $closedByTimeout['id'];
+            } elseif ($since > 0) {
+                $lastSession = (new SessionModel())
+                    ->select('id')
+                    ->where('started_at IS NOT NULL', null, false)
+                    ->orderBy('id', 'DESC')
+                    ->first();
+                $sessionId = $lastSession ? (int) $lastSession['id'] : 0;
+            }
         } else {
             $sessionId = (int) session()->get('session_id');
         }
@@ -160,7 +173,8 @@ class EventApi extends BaseController
             $nowTs = time();
             $lastSeenTs = !empty($me['last_seen_at']) ? strtotime($me['last_seen_at']) : 0;
 
-            if ($lastSeenTs <= 0 || ($nowTs - $lastSeenTs) >= 10) {
+            $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
+            if ($isCurrentSessionActive && ($lastSeenTs <= 0 || ($nowTs - $lastSeenTs) >= 10)) {
                 // Pakai query builder langsung agar ringan
                 $db = db_connect();
                 $db->table('participants')

@@ -4,7 +4,6 @@ namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
 use App\Models\EventModel;
-use App\Models\SessionModel;
 use App\Models\ParticipantModel;
 
 /**
@@ -101,6 +100,12 @@ class RtcApi extends BaseController
         if ($sessionId <= 0) {
             return $this->json(['ok' => false, 'error' => 'No active session'], 400);
         }
+        if (!$isAdmin) {
+            $active = $this->getActiveSession();
+            if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
+                return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            }
+        }
 
         // 8) Optional: throttle / rate limit signaling
         // Candidate events can spam DB. Keep limit generous.
@@ -180,10 +185,7 @@ class RtcApi extends BaseController
             // $postedSession = (int) $this->request->getPost('session_id');
             // if ($postedSession > 0) return $postedSession;
 
-            $active = (new SessionModel())
-                ->where('is_active', 1)
-                ->orderBy('id', 'DESC')
-                ->first();
+            $active = $this->getActiveSession();
 
             return $active ? (int) $active['id'] : 0;
         }

@@ -3,7 +3,6 @@
 namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
-use App\Models\SessionModel;
 use App\Models\MessageModel;
 use App\Models\EventModel;
 
@@ -14,11 +13,18 @@ class ChatApi extends BaseController
         $isAdmin = (bool) session()->get('admin_id');
         $participantId = (int) session()->get('participant_id');
 
-        $active = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSession();
         $sessionId = 0;
 
-        if ($isAdmin && $active) $sessionId = (int)$active['id'];
-        if (!$isAdmin) $sessionId = (int) session()->get('session_id');
+        if ($isAdmin && $active) {
+            $sessionId = (int) $active['id'];
+        }
+        if (!$isAdmin) {
+            $sessionId = (int) session()->get('session_id');
+            if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
+                $sessionId = 0;
+            }
+        }
 
         if ($sessionId <= 0) return $this->json(['ok' => false, 'error' => 'No session'], 400);
 

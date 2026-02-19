@@ -10,13 +10,20 @@ use App\Models\EventModel;
 use App\Models\AdminModel;
 use App\Models\MaterialModel;
 use App\Models\MaterialFileModel;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class AdminController extends BaseController
 {
     public function dashboard()
     {
         $sessionModel = new SessionModel();
-        $active = $sessionModel->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSession();
+        $sessionHistory = $sessionModel
+            ->where('started_at IS NOT NULL', null, false)
+            ->orderBy('id', 'DESC')
+            ->limit(30)
+            ->findAll();
 
         $participants = [];
         $state = null;
@@ -30,7 +37,89 @@ class AdminController extends BaseController
             'activeSession' => $active,
             'participants' => $participants,
             'state' => $state,
+            'sessionTiming' => $active ? $this->getSessionTiming($active) : null,
+            'sessionHistory' => $sessionHistory,
         ]);
+    }
+
+    public function recap(int $sessionId = 0)
+    {
+        $session = $this->findSession($sessionId);
+        if (!$session) {
+            return redirect()->to('/admin')->with('error', 'Sesi tidak valid atau tidak ditemukan.');
+        }
+
+        return view('admin/recap', $this->buildRecapData($session));
+    }
+
+    public function exportRecapExcel(int $sessionId = 0)
+    {
+        $session = $this->findSession($sessionId);
+        if (!$session) {
+            return redirect()->to('/admin')->with('error', 'Sesi tidak valid atau tidak ditemukan.');
+        }
+
+        $data = $this->buildRecapData($session);
+        $filename = $this->reportBaseFilename($session) . '.xls';
+        $html = view('admin/reports/recap_excel', [
+            'session' => $data['session'],
+            'participants' => $data['participants'],
+            'messagesCount' => $data['messagesCount'],
+            'materialsUsed' => $data['materialsUsed'],
+            'durationSec' => $data['durationSec'],
+            'generatedAt' => date('Y-m-d H:i:s'),
+            'durationText' => $this->durationText((int) $data['durationSec']),
+            'limitText' => $this->sessionLimitText($data['session']),
+        ]);
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->setBody("\xEF\xBB\xBF" . $html);
+    }
+
+    public function exportRecapPdf(int $sessionId = 0)
+    {
+        $session = $this->findSession($sessionId);
+        if (!$session) {
+            return redirect()->to('/admin')->with('error', 'Sesi tidak valid atau tidak ditemukan.');
+        }
+
+        try {
+            $data = $this->buildRecapData($session);
+            $html = view('admin/reports/recap_pdf', [
+                'session' => $data['session'],
+                'participants' => $data['participants'],
+                'messagesCount' => $data['messagesCount'],
+                'materialsUsed' => $data['materialsUsed'],
+                'durationSec' => $data['durationSec'],
+                'generatedAt' => date('Y-m-d H:i:s'),
+                'durationText' => $this->durationText((int) $data['durationSec']),
+                'limitText' => $this->sessionLimitText($data['session']),
+            ]);
+
+            $options = new Options();
+            $options->set('isRemoteEnabled', false);
+            $options->set('defaultFont', 'DejaVu Sans');
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+
+            $pdfBytes = $dompdf->output();
+            $filename = $this->reportBaseFilename($session) . '.pdf';
+
+            return $this->response
+                ->setHeader('Content-Type', 'application/pdf')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->setBody($pdfBytes);
+        } catch (\Throwable $e) {
+            return redirect()->to('/admin/session/' . (int) $sessionId . '/recap')
+                ->with('error', 'Gagal membuat PDF rekap sesi.');
+        }
     }
 
     public function settings()
@@ -192,16 +281,29 @@ class AdminController extends BaseController
     {
         $name = trim((string) $this->request->getPost('name'));
         $name = $name ?: ('Sesi ' . date('Y-m-d H:i'));
+        $durationMinutes = (int) $this->request->getPost('duration_minutes');
+        if ($durationMinutes <= 0) {
+            $durationMinutes = 90;
+        }
+        $durationMinutes = max(15, min(1440, $durationMinutes));
 
         $sessionModel = new SessionModel();
+        $startedAt = date('Y-m-d H:i:s');
+        $deadlineAt = date('Y-m-d H:i:s', strtotime($startedAt . ' +' . $durationMinutes . ' minutes'));
 
         // matikan sesi lain (kalau ada)
-        $sessionModel->where('is_active', 1)->set(['is_active' => 0, 'ended_at' => date('Y-m-d H:i:s')])->update();
+        $active = $this->getActiveSessionRaw();
+        if ($active) {
+            $this->closeSession($active, 'manual');
+        }
 
         $id = $sessionModel->insert([
             'name' => $name,
             'is_active' => 1,
-            'started_at' => date('Y-m-d H:i:s'),
+            'started_at' => $startedAt,
+            'duration_limit_minutes' => $durationMinutes,
+            'deadline_at' => $deadlineAt,
+            'extension_minutes' => 0,
             'created_by_admin_id' => (int) session()->get('admin_id'),
             'created_at' => date('Y-m-d H:i:s'),
         ], true);
@@ -211,7 +313,44 @@ class AdminController extends BaseController
         (new EventModel())->addForAll($id, 'session_started', [
             'session_id' => $id,
             'name' => $name,
-            'started_at' => date('Y-m-d H:i:s'),
+            'started_at' => $startedAt,
+            'duration_limit_minutes' => $durationMinutes,
+            'deadline_at' => $deadlineAt,
+        ]);
+
+        return redirect()->to('/admin');
+    }
+
+    public function extendSession()
+    {
+        $active = $this->getActiveSession();
+        if (!$active) {
+            return redirect()->to('/admin')->with('error', 'Tidak ada sesi aktif.');
+        }
+
+        $deadlineAt = trim((string) ($active['deadline_at'] ?? ''));
+        if ($deadlineAt === '') {
+            return redirect()->to('/admin')->with('error', 'Sesi ini tidak memiliki batas waktu.');
+        }
+
+        $deadlineTs = strtotime($deadlineAt);
+        if ($deadlineTs === false) {
+            return redirect()->to('/admin')->with('error', 'Deadline sesi tidak valid.');
+        }
+
+        $newDeadline = date('Y-m-d H:i:s', $deadlineTs + (30 * 60));
+        $extensionMinutes = max(0, (int) ($active['extension_minutes'] ?? 0)) + 30;
+
+        (new SessionModel())->update((int) $active['id'], [
+            'deadline_at' => $newDeadline,
+            'extension_minutes' => $extensionMinutes,
+        ]);
+
+        (new EventModel())->addForAll((int) $active['id'], 'session_extended', [
+            'session_id' => (int) $active['id'],
+            'deadline_at' => $newDeadline,
+            'extension_minutes' => $extensionMinutes,
+            'added_minutes' => 30,
         ]);
 
         return redirect()->to('/admin');
@@ -219,51 +358,129 @@ class AdminController extends BaseController
 
     public function endSession()
     {
-        $sessionModel = new SessionModel();
-        $active = $sessionModel->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSessionRaw();
 
         if (!$active) {
             return redirect()->to('/admin')->with('error', 'Tidak ada sesi aktif.');
         }
 
-        $endedAt = date('Y-m-d H:i:s');
-        $sessionModel->update($active['id'], [
-            'is_active' => 0,
-            'ended_at' => $endedAt,
-        ]);
+        $this->closeSession($active, 'manual');
 
-        (new EventModel())->addForAll($active['id'], 'session_ended', [
-            'session_id' => $active['id'],
-            'ended_at' => $endedAt,
-        ]);
+        return $this->recap((int) $active['id']);
+    }
 
-        // Rekap
-        $participantModel = new ParticipantModel();
-        $messageModel = new MessageModel();
+    private function buildRecapData(array $session): array
+    {
+        $sessionId = (int) ($session['id'] ?? 0);
 
-        $participants = $participantModel->where('session_id', $active['id'])->orderBy('id', 'ASC')->findAll();
-        $messagesCount = $messageModel->where('session_id', $active['id'])->countAllResults();
+        $participants = (new ParticipantModel())
+            ->where('session_id', $sessionId)
+            ->orderBy('id', 'ASC')
+            ->findAll();
 
-        // hitung materi dipakai dari events
-        $db = db_connect();
-        $materialsUsed = $db->table('events')
-            ->select('JSON_EXTRACT(payload_json, "$.material_id") AS mid')
-            ->where('session_id', $active['id'])
-            ->where('type', 'material_changed')
-            ->groupBy('mid')
+        $messagesCount = (new MessageModel())
+            ->where('session_id', $sessionId)
             ->countAllResults();
 
-        $durationSec = 0;
-        if (!empty($active['started_at'])) {
-            $durationSec = max(0, strtotime($endedAt) - strtotime($active['started_at']));
+        $events = (new EventModel())
+            ->select('payload_json')
+            ->where('session_id', $sessionId)
+            ->where('type', 'material_changed')
+            ->findAll();
+
+        $materialIds = [];
+        foreach ($events as $event) {
+            $payloadJson = (string) ($event['payload_json'] ?? '');
+            if ($payloadJson === '') {
+                continue;
+            }
+
+            $decoded = json_decode($payloadJson, true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+
+            $materialId = (int) ($decoded['material_id'] ?? 0);
+            if ($materialId > 0) {
+                $materialIds[$materialId] = true;
+            }
         }
 
-        return view('admin/recap', [
-            'session' => array_merge($active, ['ended_at' => $endedAt]),
+        $durationSec = 0;
+        $startedAt = (string) ($session['started_at'] ?? '');
+        $endedAt = (string) ($session['ended_at'] ?? '');
+        $deadlineAt = (string) ($session['deadline_at'] ?? '');
+        if ($startedAt !== '') {
+            $durationEnd = $endedAt !== '' ? $endedAt : date('Y-m-d H:i:s');
+
+            $deadlineTs = $deadlineAt !== '' ? strtotime($deadlineAt) : false;
+            $durationEndTs = strtotime($durationEnd);
+            if ($deadlineTs !== false && $durationEndTs !== false && $durationEndTs > $deadlineTs) {
+                $durationEnd = date('Y-m-d H:i:s', $deadlineTs);
+            }
+
+            $startedTs = strtotime($startedAt);
+            $endedTs = strtotime($durationEnd);
+            if ($startedTs !== false && $endedTs !== false) {
+                $durationSec = max(0, $endedTs - $startedTs);
+            }
+        }
+
+        return [
+            'session' => $session,
             'participants' => $participants,
             'messagesCount' => $messagesCount,
-            'materialsUsed' => $materialsUsed,
+            'materialsUsed' => count($materialIds),
             'durationSec' => $durationSec,
-        ]);
+        ];
+    }
+
+    private function findSession(int $sessionId): ?array
+    {
+        if ($sessionId <= 0) {
+            return null;
+        }
+
+        $session = (new SessionModel())->find($sessionId);
+        return $session ?: null;
+    }
+
+    private function durationText(int $durationSec): string
+    {
+        $durationSec = max(0, $durationSec);
+        $minute = (int) floor($durationSec / 60);
+        $second = $durationSec % 60;
+        return $minute . ' menit ' . $second . ' detik';
+    }
+
+    private function sessionLimitText(array $session): string
+    {
+        $durationLimitMinutes = (int) ($session['duration_limit_minutes'] ?? 0);
+        $extensionMinutes = (int) ($session['extension_minutes'] ?? 0);
+        if ($durationLimitMinutes <= 0) {
+            return '-';
+        }
+
+        $out = $durationLimitMinutes . ' menit';
+        if ($extensionMinutes > 0) {
+            $out .= ' (+' . $extensionMinutes . ' menit)';
+        }
+
+        return $out;
+    }
+
+    private function reportBaseFilename(array $session): string
+    {
+        $sessionId = (int) ($session['id'] ?? 0);
+        $rawName = trim((string) ($session['name'] ?? ''));
+        $rawName = $rawName !== '' ? $rawName : 'sesi';
+
+        $slug = strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', $rawName));
+        $slug = trim($slug, '-');
+        if ($slug === '') {
+            $slug = 'sesi';
+        }
+
+        return 'rekap-sesi-' . $sessionId . '-' . $slug;
     }
 }

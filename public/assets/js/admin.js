@@ -21,6 +21,7 @@
     allowStudentSpeaker: true,
     adminSpeakerOn: true,
   };
+  let sessionReloadQueued = false;
 
   const grid = document.getElementById('participantsGrid');
   const chatLog = document.getElementById('chatLog');
@@ -916,6 +917,14 @@
       if(t === 'session_ended'){
         appendChat('System', 'Sesi ditutup.');
         hangupAll(false).catch(()=>{});
+        if(!sessionReloadQueued){
+          sessionReloadQueued = true;
+          setTimeout(()=> window.location.reload(), 1200);
+        }
+      }
+
+      if(t === 'session_extended'){
+        appendChat('System', 'Batas sesi diperpanjang 30 menit.');
       }
 
       if(t === 'rtc_signal'){

@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\AdminModel;
-use App\Models\SessionModel;
 use App\Models\ParticipantModel;
 use App\Models\EventModel;
 use App\Models\SessionStateModel;
@@ -84,8 +83,7 @@ class AuthController extends BaseController
             return redirect()->back()->with('error', 'Nama & kelas wajib.');
         }
 
-        $sessionModel = new SessionModel();
-        $active = $sessionModel->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSession();
 
         $deviceKeyToken = (string) $this->request->getCookie(LAB_COOKIE_DEVICE);
         $deviceKey = (string) (lab_remember_unpack($deviceKeyToken) ?? '');

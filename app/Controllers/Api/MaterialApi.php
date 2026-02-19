@@ -3,7 +3,6 @@
 namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
-use App\Models\SessionModel;
 use App\Models\SessionStateModel;
 use App\Models\MaterialModel;
 use App\Models\MaterialFileModel;
@@ -105,8 +104,8 @@ class MaterialApi extends BaseController
             return $this->json(['ok' => false], 401);
         }
 
-        $active = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
-        $sessionId = $active ? (int)$active['id'] : (int) session()->get('session_id');
+        $active = $this->getActiveSession();
+        $sessionId = $active ? (int)$active['id'] : 0;
         if ($sessionId <= 0) return $this->json(['ok' => true, 'state' => null]);
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
@@ -133,7 +132,7 @@ class MaterialApi extends BaseController
         $fileId = (int) $this->request->getPost('file_id');
         $textIndexRaw = $this->request->getPost('text_index');
 
-        $active = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSession();
         if (!$active) return $this->json(['ok' => false, 'message' => 'Tidak ada sesi aktif.'], 400);
         $sessionId = (int) $active['id'];
 
@@ -186,7 +185,7 @@ class MaterialApi extends BaseController
             return $this->json(['ok' => false, 'message' => 'Aksi tidak valid.'], 400);
         }
 
-        $active = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $active = $this->getActiveSession();
         if (!$active) return $this->json(['ok' => false, 'message' => 'Tidak ada sesi aktif.'], 400);
         $sessionId = (int) $active['id'];
 

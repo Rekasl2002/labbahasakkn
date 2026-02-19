@@ -9,6 +9,16 @@ class SessionModel extends Model
     protected $table = 'sessions';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
-    protected $allowedFields = ['name', 'is_active', 'started_at', 'ended_at', 'created_by_admin_id', 'created_at'];
+    protected $allowedFields = [
+        'name',
+        'is_active',
+        'started_at',
+        'ended_at',
+        'duration_limit_minutes',
+        'deadline_at',
+        'extension_minutes',
+        'created_by_admin_id',
+        'created_at',
+    ];
     protected $useTimestamps = false;
 }

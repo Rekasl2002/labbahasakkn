@@ -3,7 +3,6 @@
 namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
-use App\Models\SessionModel;
 use App\Models\ParticipantModel;
 use App\Models\SessionStateModel;
 use App\Models\EventModel;
@@ -25,6 +24,11 @@ class ControlApi extends BaseController
 
         if (!$participantId || !$sessionId) {
             return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $active = $this->getActiveSession();
+        if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
+            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
         }
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
@@ -71,6 +75,11 @@ class ControlApi extends BaseController
 
         if (!$participantId || !$sessionId) {
             return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $active = $this->getActiveSession();
+        if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
+            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
         }
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
@@ -356,13 +365,8 @@ class ControlApi extends BaseController
      * Helpers (opsional, tapi bikin API lebih rapih & aman)
      * ========================================================= */
 
-    private function getActiveSession(): ?array
+    protected function getActiveSession(bool $autoCloseExpired = true): ?array
     {
-        $active = (new SessionModel())
-            ->where('is_active', 1)
-            ->orderBy('id', 'DESC')
-            ->first();
-
-        return $active ?: null;
+        return parent::getActiveSession($autoCloseExpired);
     }
 }

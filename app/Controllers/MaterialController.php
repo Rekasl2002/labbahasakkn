@@ -4,7 +4,6 @@ namespace App\Controllers;
 
 use App\Models\MaterialModel;
 use App\Models\MaterialFileModel;
-use App\Models\SessionModel;
 use App\Models\SessionStateModel;
 use App\Models\EventModel;
 
@@ -179,7 +178,7 @@ class MaterialController extends BaseController
 
     public function broadcast(int $id)
     {
-        $session = (new SessionModel())->where('is_active', 1)->orderBy('id', 'DESC')->first();
+        $session = $this->getActiveSession();
         if (!$session) {
             return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
                 ->with('error', 'Tidak ada sesi aktif.');

@@ -1,10 +1,42 @@
 <?= $this->extend('layout/main') ?>
 <?= $this->section('content') ?>
+<?php
+$sessionName = trim((string) ($session['name'] ?? ''));
+$sessionName = $sessionName !== '' ? $sessionName : 'Sesi tanpa nama';
+$isActive = (int) ($session['is_active'] ?? 0) === 1;
+$endedAtText = trim((string) ($session['ended_at'] ?? ''));
+$endedAtText = $endedAtText !== '' ? $endedAtText : ($isActive ? 'Sedang berlangsung' : '-');
+$durationLimitMinutes = (int) ($session['duration_limit_minutes'] ?? 0);
+$extensionMinutes = (int) ($session['extension_minutes'] ?? 0);
+$deadlineAtText = trim((string) ($session['deadline_at'] ?? ''));
+$sessionId = (int) ($session['id'] ?? 0);
+$limitText = '-';
+if ($durationLimitMinutes > 0) {
+    $limitText = $durationLimitMinutes . ' menit';
+    if ($extensionMinutes > 0) {
+        $limitText .= ' (+' . $extensionMinutes . ' menit)';
+    }
+}
+?>
 <h1>Rekap Sesi</h1>
+<?php if ($sessionId > 0): ?>
+  <div class="row gap wrap" style="margin:0 0 12px">
+    <a class="btn tiny" href="/admin/session/<?= $sessionId ?>/report/excel">Unduh Excel</a>
+    <a class="btn tiny" href="/admin/session/<?= $sessionId ?>/report/pdf">Unduh PDF</a>
+  </div>
+<?php endif; ?>
 
 <div class="card">
-  <p><b><?= esc($session['name']) ?></b></p>
-  <p>Mulai: <?= esc($session['started_at'] ?? '-') ?> | Selesai: <?= esc($session['ended_at'] ?? '-') ?></p>
+  <div class="row between wrap gap" style="align-items:flex-start">
+    <p style="margin:0"><b><?= esc($sessionName) ?></b></p>
+    <?php if ($isActive): ?>
+      <span class="badge ok">SESI AKTIF</span>
+    <?php else: ?>
+      <span class="badge">SESI SELESAI</span>
+    <?php endif; ?>
+  </div>
+  <p>Mulai: <?= esc($session['started_at'] ?? '-') ?> | Selesai: <?= esc($endedAtText) ?></p>
+  <p>Batas sesi: <?= esc($limitText) ?> | Deadline: <?= esc($deadlineAtText !== '' ? $deadlineAtText : '-') ?></p>
   <p>Durasi: <?= floor($durationSec/60) ?> menit <?= $durationSec%60 ?> detik</p>
   <p>Jumlah peserta: <?= count($participants) ?></p>
   <p>Total chat: <?= (int)$messagesCount ?></p>

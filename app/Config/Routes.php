@@ -55,6 +55,10 @@ $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
     $routes->get('/', 'AdminController::dashboard');
     $routes->post('session/start', 'AdminController::startSession');
     $routes->post('session/end', 'AdminController::endSession');
+    $routes->post('session/extend', 'AdminController::extendSession');
+    $routes->get('session/(:num)/recap', 'AdminController::recap/$1');
+    $routes->get('session/(:num)/report/excel', 'AdminController::exportRecapExcel/$1');
+    $routes->get('session/(:num)/report/pdf', 'AdminController::exportRecapPdf/$1');
     $routes->get('settings', 'AdminController::settings');
     $routes->post('settings', 'AdminController::saveSettings');
     $routes->post('settings/password', 'AdminController::updatePassword');
