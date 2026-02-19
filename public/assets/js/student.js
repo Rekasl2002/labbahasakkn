@@ -1274,6 +1274,14 @@
         scheduleVoiceCheck(300);
       }
 
+      if(t === 'participant_left'){
+        const pid = Number(p.participant_id || p.id || 0);
+        if(!pid) continue;
+        state.peers.delete(pid);
+        renderPeers();
+        scheduleVoiceCheck(200);
+      }
+
       if(t === 'mic_changed'){
         const x = state.peers.get(p.participant_id);
         if(x){ x.mic_on = p.mic_on ? 1 : 0; renderPeers(); }

@@ -885,6 +885,13 @@
         scheduleRenderParticipants();
       }
 
+      if(t === 'participant_left'){
+        const pid = pidOf(p.participant_id || p.id);
+        if(!pid) continue;
+        state.participants.delete(pid);
+        scheduleRenderParticipants();
+      }
+
       if(t === 'mic_changed'){
         const x = state.participants.get(pidOf(p.participant_id));
         if(x){ x.mic_on = p.mic_on ? 1 : 0; scheduleRenderParticipants(); }

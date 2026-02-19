@@ -49,6 +49,7 @@ $routes->get('login', 'AuthController::chooseRole');
 $routes->post('login/admin', 'AuthController::adminLogin');
 $routes->post('login/student', 'AuthController::studentLogin');
 $routes->get('logout', 'AuthController::logout');
+$routes->get('logout/student', 'AuthController::studentLogout');
 
 // Admin area
 $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {

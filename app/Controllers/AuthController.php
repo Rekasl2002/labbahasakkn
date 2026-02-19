@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\AdminModel;
 use App\Models\ParticipantModel;
+use App\Models\MessageModel;
 use App\Models\EventModel;
 use App\Models\SessionStateModel;
 
@@ -197,5 +198,55 @@ class AuthController extends BaseController
         $this->response->deleteCookie(LAB_COOKIE_ADMIN);
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
         return redirect()->to('/');
+    }
+
+    public function studentLogout()
+    {
+        helper('remember');
+
+        $sessionId = (int) session()->get('session_id');
+        $participantId = (int) session()->get('participant_id');
+
+        if ($sessionId > 0 && $participantId > 0) {
+            $participantModel = new ParticipantModel();
+            $participant = $participantModel
+                ->where('id', $participantId)
+                ->where('session_id', $sessionId)
+                ->first();
+
+            if ($participant) {
+                $db = db_connect();
+                $db->transStart();
+
+                // Hapus pesan milik/tujuan siswa ini dalam sesi.
+                (new MessageModel())
+                    ->groupStart()
+                        ->where('session_id', $sessionId)
+                        ->where('sender_participant_id', $participantId)
+                    ->groupEnd()
+                    ->orGroupStart()
+                        ->where('session_id', $sessionId)
+                        ->where('target_participant_id', $participantId)
+                    ->groupEnd()
+                    ->delete();
+
+                // Hapus jejak siswa dari sesi agar tidak masuk daftar rekap.
+                $participantModel->delete($participantId);
+
+                (new EventModel())->addForAll($sessionId, 'participant_left', [
+                    'participant_id' => $participantId,
+                    'student_name' => (string) ($participant['student_name'] ?? ''),
+                    'class_name' => (string) ($participant['class_name'] ?? ''),
+                    'left_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                $db->transComplete();
+            }
+        }
+
+        session()->destroy();
+        $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+
+        return redirect()->to('/')->with('ok', 'Sesi siswa telah diakhiri.');
     }
 }
