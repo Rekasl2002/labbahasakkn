@@ -211,7 +211,7 @@
     state.audioUnlocked = ok;
     if(btnEnableAdminAudio) btnEnableAdminAudio.classList.toggle('ok', ok);
     if(!ok && auto){
-      setCallStatus('Klik "Aktifkan Speaker" jika audio belum keluar.');
+      setCallStatus('Klik "Aktifkan Audio" jika audio belum keluar.');
     }
 
     syncAudioIndicator();
@@ -220,6 +220,25 @@
 
   if(btnEnableAdminAudio){
     btnEnableAdminAudio.addEventListener('click', ()=> unlockAdminAudio(false));
+  }
+
+  function bindAutoAudioUnlockByGesture(){
+    const events = ['pointerdown', 'keydown', 'touchstart'];
+    const handler = ()=>{
+      if(state.audioUnlocked){
+        cleanup();
+        return;
+      }
+      unlockAdminAudio(true).catch(()=>{}).finally(()=>{
+        if(state.audioUnlocked){
+          cleanup();
+        }
+      });
+    };
+    const cleanup = ()=>{
+      events.forEach((evt)=> document.removeEventListener(evt, handler, true));
+    };
+    events.forEach((evt)=> document.addEventListener(evt, handler, true));
   }
 
   async function refreshDevices(){
@@ -428,7 +447,7 @@
           if(state.audioUnlocked && state.adminSpeakerOn){
             audioEl.play().catch(()=>{});
           }else{
-            setCallStatus('Ada audio masuk. Klik "Aktifkan Speaker".');
+            setCallStatus('Ada audio masuk. Klik "Aktifkan Audio".');
           }
           syncAudioIndicator();
         }
@@ -601,6 +620,9 @@
     syncAdminSpkBtn();
     btnAdminSpk.addEventListener('click', ()=>{
       state.adminSpeakerOn = !state.adminSpeakerOn;
+      if(state.adminSpeakerOn){
+        unlockAdminAudio(true).catch(()=>{});
+      }
       syncAdminSpkBtn();
       applyAdminSpeakerState();
     });
@@ -1371,6 +1393,7 @@
   applyAdminSpeakerState();
   refreshDevices();
   setTimeout(()=>{ autoInitAudio().catch(()=>{}); }, 300);
+  bindAutoAudioUnlockByGesture();
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
   }

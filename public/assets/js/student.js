@@ -385,6 +385,29 @@
     btnSpk.title = locked ? 'Speaker dikunci admin' : 'Aktif/nonaktif speaker kamu';
   }
 
+  async function syncMyMicFromControl(nextMicOn, msgOn, msgOff){
+    state.myMicOn = !!nextMicOn;
+    syncMicBtn();
+
+    if(state.myMicOn){
+      try{
+        await ensureMicStreamFromUserGesture();
+        applyMicState();
+        attachLocalTrackToAllPeers();
+        if(msgOn) setAudioStatus(msgOn);
+        refreshDevices();
+      }catch(err){
+        setAudioStatus('Mic ON, izinkan akses mic di browser: ' + (err.message || err));
+      }
+    }else{
+      applyMicState();
+      stopLocalStream();
+      if(msgOff) setAudioStatus(msgOff);
+    }
+
+    scheduleVoiceCheck(200);
+  }
+
   function ensurePeerAudio(kind, pid){
     if(kind === 'admin') return remoteAudio;
     if(!audioPool) return null;
@@ -758,6 +781,25 @@
 
   if(btnEnableAudio){
     btnEnableAudio.addEventListener('click', ()=> unlockAudio(false));
+  }
+
+  function bindAutoAudioUnlockByGesture(){
+    const events = ['pointerdown', 'keydown', 'touchstart'];
+    const handler = ()=>{
+      if(state.audioUnlocked){
+        cleanup();
+        return;
+      }
+      unlockAudio(true).catch(()=>{}).finally(()=>{
+        if(state.audioUnlocked){
+          cleanup();
+        }
+      });
+    };
+    const cleanup = ()=>{
+      events.forEach((evt)=> document.removeEventListener(evt, handler, true));
+    };
+    events.forEach((evt)=> document.addEventListener(evt, handler, true));
   }
 
   if(selMic){
@@ -1237,15 +1279,21 @@
         if(x){ x.mic_on = p.mic_on ? 1 : 0; renderPeers(); }
 
         if(p.participant_id === myId){
-          state.myMicOn = !!p.mic_on;
-          syncMicBtn();
-          applyMicState();
-
-          if(!state.myMicOn){
-            stopLocalStream();
-          }
-          scheduleVoiceCheck(200);
+          const forced = !!p.forced_by_admin;
+          const msgOn = forced ? 'Mic diaktifkan admin.' : 'Mic diaktifkan.';
+          const msgOff = forced ? 'Mic dimatikan admin.' : 'Mic dimatikan.';
+          await syncMyMicFromControl(!!p.mic_on, msgOn, msgOff);
         }
+      }
+
+      if(t === 'mic_all_changed'){
+        for(const x of state.peers.values()){ x.mic_on = p.mic_on ? 1 : 0; }
+        renderPeers();
+        await syncMyMicFromControl(
+          !!p.mic_on,
+          'Mic diaktifkan admin.',
+          'Mic dimatikan admin.'
+        );
       }
 
       if(t === 'speaker_changed'){
@@ -1375,6 +1423,9 @@
       const r = await post('/api/control/speaker/toggle', {});
       if(r && r.ok){
         state.mySpeakerOn = !!r.speaker_on;
+        if(state.mySpeakerOn){
+          unlockAudio(true).catch(()=>{});
+        }
         applySpeakerState();
         syncSpkBtn();
         setAudioStatus(state.mySpeakerOn ? 'Speaker diaktifkan.' : 'Speaker dimatikan.');
@@ -1421,6 +1472,7 @@
   syncSpkBtn();
   refreshDevices();
   setTimeout(()=>{ autoInitAudio(false).catch(()=>{}); }, 300);
+  bindAutoAudioUnlockByGesture();
   scheduleVoiceCheck(400);
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
