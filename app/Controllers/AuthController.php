@@ -206,6 +206,8 @@ class AuthController extends BaseController
 
         $sessionId = (int) session()->get('session_id');
         $participantId = (int) session()->get('participant_id');
+        $active = $this->getActiveSessionRaw();
+        $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
 
         if ($sessionId > 0 && $participantId > 0) {
             $participantModel = new ParticipantModel();
@@ -214,7 +216,7 @@ class AuthController extends BaseController
                 ->where('session_id', $sessionId)
                 ->first();
 
-            if ($participant) {
+            if ($participant && $isCurrentSessionActive) {
                 $db = db_connect();
                 $db->transStart();
 
@@ -246,7 +248,7 @@ class AuthController extends BaseController
 
         session()->destroy();
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
-
-        return redirect()->to('/')->with('ok', 'Sesi siswa telah diakhiri.');
+        $msg = $isCurrentSessionActive ? 'Sesi siswa telah diakhiri.' : 'Sesi sudah berakhir. Kamu telah keluar.';
+        return redirect()->to('/')->with('ok', $msg);
     }
 }

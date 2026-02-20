@@ -12,6 +12,13 @@ use App\Models\MaterialFileModel;
 
 class EventApi extends BaseController
 {
+    private function clearStudentAuth(): void
+    {
+        helper('remember');
+        session()->remove(['participant_id', 'session_id', 'student_name', 'class_name']);
+        $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+    }
+
     private function parseTextItems(array $material): array
     {
         $type = (string) ($material['type'] ?? '');
@@ -143,6 +150,19 @@ class EventApi extends BaseController
             $sessionId = (int) session()->get('session_id');
         }
 
+        if (!$isAdmin && $sessionId <= 0) {
+            $this->clearStudentAuth();
+            return $this->jsonNoStore(['ok' => false, 'error' => 'Session ended'], 401);
+        }
+
+        if (!$isAdmin) {
+            $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
+            if (!$isCurrentSessionActive) {
+                $this->clearStudentAuth();
+                return $this->jsonNoStore(['ok' => false, 'error' => 'Session ended'], 401);
+            }
+        }
+
         // Kalau tidak ada sesi aktif (admin) atau siswa kehilangan session_id
         if ($sessionId <= 0) {
             $payload = [
@@ -165,7 +185,8 @@ class EventApi extends BaseController
                 ->first();
 
             if (!$me || (int) $me['session_id'] !== $sessionId) {
-                return $this->json(['ok' => false, 'error' => 'Invalid session'], 403);
+                $this->clearStudentAuth();
+                return $this->jsonNoStore(['ok' => false, 'error' => 'Invalid session'], 401);
             }
 
             // Throttle heartbeat update biar tidak update DB setiap 1.2 detik

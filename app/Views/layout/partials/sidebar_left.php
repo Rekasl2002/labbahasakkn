@@ -8,7 +8,7 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
 ?>
 
 <?php if ($role === 'student'): ?>
-  <aside class="lab-sidebar lab-sidebar-left">
+  <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
         <div class="lab-sidebar-title">Lab Bahasa</div>
@@ -56,11 +56,27 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
             <select id="selSpk" aria-label="Pilih speaker"></select>
           </div>
         </div>
+        <div class="lab-audio-sliders">
+          <div class="lab-audio-slider-row">
+            <label class="lab-audio-slider-head" for="rngMicVol">
+              <span>Volume Mic</span>
+              <span id="txtMicVol">100%</span>
+            </label>
+            <input id="rngMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mic siswa">
+          </div>
+          <div class="lab-audio-slider-row">
+            <label class="lab-audio-slider-head" for="rngSpkVol">
+              <span>Volume Speaker</span>
+              <span id="txtSpkVol">100%</span>
+            </label>
+            <input id="rngSpkVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume speaker siswa">
+          </div>
+        </div>
       </section>
     </div>
   </aside>
 <?php elseif ($role === 'admin'): ?>
-  <aside class="lab-sidebar lab-sidebar-left">
+  <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
         <div class="lab-sidebar-title">Lab Bahasa</div>
@@ -117,6 +133,22 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
           <div class="lab-audio-dd" aria-hidden="true">
             <span class="lab-audio-caret">▾</span>
             <select id="selAdminSpk" aria-label="Pilih speaker admin"></select>
+          </div>
+        </div>
+        <div class="lab-audio-sliders">
+          <div class="lab-audio-slider-row">
+            <label class="lab-audio-slider-head" for="rngAdminMicVol">
+              <span>Volume Mic</span>
+              <span id="txtAdminMicVol">100%</span>
+            </label>
+            <input id="rngAdminMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mic admin">
+          </div>
+          <div class="lab-audio-slider-row">
+            <label class="lab-audio-slider-head" for="rngAdminSpkVol">
+              <span>Volume Speaker</span>
+              <span id="txtAdminSpkVol">100%</span>
+            </label>
+            <input id="rngAdminSpkVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume speaker admin">
           </div>
         </div>
       </section>

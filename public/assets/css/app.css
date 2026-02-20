@@ -10,6 +10,7 @@
   --sidebar-right-width:320px;
   --sidebar-gap:16px;
   --topbar-offset:60px;
+  --sidebar-audio-reserve:360px;
 
   /* opsional: polishing */
   --panel:#edf7f1;
@@ -181,6 +182,10 @@ body.embed-modal .container{
   flex-direction:column;
   gap:12px;
   padding-right:6px;
+}
+.lab-sidebar-with-audio .lab-sidebar-inner{
+  position:relative;
+  padding-bottom:var(--sidebar-audio-reserve);
 }
 .lab-sidebar-nav{
   display:flex;
@@ -389,7 +394,6 @@ body.embed-modal .container{
 .lab-sidebar-user .meta{font-size:12px;color:var(--muted)}
 .lab-sidebar-spacer{flex:1}
 .lab-sidebar-audio{
-  margin-top:auto;
   padding:10px;
   border-radius:12px;
   background:rgba(255,255,255,.82);
@@ -398,11 +402,50 @@ body.embed-modal .container{
   flex-direction:column;
   gap:8px;
 }
+.lab-sidebar-with-audio .lab-sidebar-audio{
+  position:absolute;
+  left:0;
+  right:6px;
+  bottom:0;
+  margin-top:0;
+  z-index:2;
+  box-shadow:0 8px 20px rgba(16,64,48,.12);
+}
 .lab-sidebar-audio-title{
   font-size:12px;
   color:var(--muted);
   text-transform:uppercase;
   letter-spacing:.6px;
+}
+.lab-audio-sliders{
+  margin-top:4px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.lab-audio-slider-row{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.lab-audio-slider-head{
+  margin:0;
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.lab-audio-slider-row input[type="range"]{
+  width:100%;
+  padding:0;
+  border:none;
+  background:transparent;
+  box-shadow:none;
+}
+.lab-audio-slider-row input[type="range"]:focus{
+  box-shadow:none;
 }
 .lab-audio-group{
   display:flex;
@@ -468,6 +511,15 @@ body.embed-modal .container{
   }
   .lab-sidebar-inner{height:auto}
   .lab-sidebar-spacer{display:none}
+  .lab-sidebar-with-audio .lab-sidebar-inner{
+    padding-bottom:0;
+  }
+  .lab-sidebar-with-audio .lab-sidebar-audio{
+    position:static;
+    right:auto;
+    bottom:auto;
+    box-shadow:none;
+  }
 }
 
 /* responsive */

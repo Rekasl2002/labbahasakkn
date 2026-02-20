@@ -20,6 +20,10 @@
   const remoteAudio = document.getElementById('remoteAudio');
   const selMic = document.getElementById('selMic');
   const selSpk = document.getElementById('selSpk');
+  const rngMicVol = document.getElementById('rngMicVol');
+  const txtMicVol = document.getElementById('txtMicVol');
+  const rngSpkVol = document.getElementById('rngSpkVol');
+  const txtSpkVol = document.getElementById('txtSpkVol');
   const audioPool = (function(){
     const existing = document.getElementById('studentAudioPool');
     if(existing) return existing;
@@ -42,6 +46,8 @@
     devicePermissionAsked: false,
     autoInitDone: false,
     devices: { inputs: [], outputs: [] },
+    micVolume: 1,
+    speakerVolume: 1,
     broadcastText: '',
     materialText: '',
     activeTextSource: '',
@@ -68,11 +74,15 @@
     spk: 'lab_student_spk_id',
     micLabel: 'lab_student_mic_label',
     spkLabel: 'lab_student_spk_label',
+    micVolume: 'lab_student_mic_volume',
+    spkVolume: 'lab_student_spk_volume',
   };
 
   const ALWAYS_JOIN_VOICE = true;
 
   let voiceCheckTimer = null;
+  let sessionExitQueued = false;
+  let poller = null;
 
   function mkCallId(){
     if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -96,9 +106,28 @@
   function esc(s){
     return (s??'').toString().replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   }
+  function clamp01(v){
+    const n = Number(v);
+    if(!Number.isFinite(n)) return 1;
+    return Math.min(1, Math.max(0, n));
+  }
+  function toPercentText(v){
+    return `${Math.round(clamp01(v) * 100)}%`;
+  }
 
   function setAudioStatus(text){
     if(audioStatusEl) audioStatusEl.textContent = text || '';
+  }
+
+  function leaveEndedSession(message){
+    if(sessionExitQueued) return;
+    sessionExitQueued = true;
+    if(message) setAudioStatus(message);
+    try{
+      if(poller && typeof poller.stop === 'function') poller.stop();
+    }catch(e){}
+    closeAllPeers(false);
+    setTimeout(()=>{ window.location.href = '/login'; }, 600);
   }
 
   function setAudioIndicator(kind, text){
@@ -147,6 +176,11 @@
       else localStorage.removeItem(key);
     }catch(e){}
   }
+  function readSavedVolume(key, fallback){
+    const raw = Number(getSaved(key));
+    if(!Number.isFinite(raw)) return fallback;
+    return clamp01(raw);
+  }
 
   function saveLabel(key, value){
     const v = (value || '').toString().trim();
@@ -165,6 +199,34 @@
     if(d.kind === 'audioinput') return `Microphone ${idx+1}`;
     if(d.kind === 'audiooutput') return `Speaker ${idx+1}`;
     return `Device ${idx+1}`;
+  }
+
+  state.micVolume = readSavedVolume(STORAGE.micVolume, 1);
+  state.speakerVolume = readSavedVolume(STORAGE.spkVolume, 1);
+
+  function syncStudentVolumeUi(){
+    const micPct = toPercentText(state.micVolume);
+    const spkPct = toPercentText(state.speakerVolume);
+    if(rngMicVol) rngMicVol.value = String(Math.round(clamp01(state.micVolume) * 100));
+    if(txtMicVol) txtMicVol.textContent = micPct;
+    if(rngSpkVol) rngSpkVol.value = String(Math.round(clamp01(state.speakerVolume) * 100));
+    if(txtSpkVol) txtSpkVol.textContent = spkPct;
+  }
+
+  function applySpeakerVolume(){
+    const vol = clamp01(state.speakerVolume);
+    if(remoteAudio) remoteAudio.volume = vol;
+    if(audioPool){
+      audioPool.querySelectorAll('audio').forEach(a=>{ a.volume = vol; });
+    }
+  }
+
+  function applyMicVolume(){
+    const vol = clamp01(state.micVolume);
+    if(!rtc.localTrack) return;
+    if(typeof rtc.localTrack.applyConstraints === 'function'){
+      rtc.localTrack.applyConstraints({ advanced: [{ volume: vol }] }).catch(()=>{});
+    }
   }
 
   function applySpeakerDevice(){
@@ -310,6 +372,7 @@
 
   function applySpeakerState(){
     if(remoteAudio) remoteAudio.muted = !state.mySpeakerOn;
+    applySpeakerVolume();
     if(audioPool){
       audioPool.querySelectorAll('audio').forEach(a=>{ a.muted = !state.mySpeakerOn; });
     }
@@ -352,7 +415,7 @@
     rtc.localStream = await getUserMediaWithSelectedMic();
 
     rtc.localTrack = rtc.localStream.getAudioTracks()[0] || null;
-    if(rtc.localTrack) rtc.localTrack.enabled = state.myMicOn;
+    applyMicState();
 
     // Jika peer sudah ada, tambahkan track sekarang
     if(rtc.localTrack){
@@ -364,7 +427,8 @@
   }
 
   function applyMicState(){
-    if(rtc.localTrack) rtc.localTrack.enabled = state.myMicOn;
+    applyMicVolume();
+    if(rtc.localTrack) rtc.localTrack.enabled = state.myMicOn && state.micVolume > 0;
   }
 
   function syncMicBtn(){
@@ -505,6 +569,7 @@
         if(audioEl){
           audioEl.srcObject = stream;
           audioEl.muted = !state.mySpeakerOn;
+          applySpeakerVolume();
           applySpeakerDevice();
 
           if(state.audioUnlocked && state.mySpeakerOn){
@@ -763,6 +828,7 @@
     if(audioPool){
       audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{ ok = false; }));
     }
+    applySpeakerVolume();
     applySpeakerDevice();
 
     state.audioUnlocked = ok;
@@ -828,7 +894,7 @@
           }
           rtc.localStream = newStream;
           rtc.localTrack = newTrack;
-          if(rtc.localTrack) rtc.localTrack.enabled = state.myMicOn;
+          applyMicState();
           if(oldStream) oldStream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
           renegotiateAllPeers();
           refreshDevices();
@@ -849,6 +915,24 @@
       const picked = state.devices.outputs.find(d=> d.deviceId === state.selectedSpkId);
       if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
       applySpeakerDevice();
+    });
+  }
+
+  if(rngMicVol){
+    rngMicVol.addEventListener('input', ()=>{
+      state.micVolume = clamp01(Number(rngMicVol.value) / 100);
+      save(STORAGE.micVolume, state.micVolume.toFixed(2));
+      syncStudentVolumeUi();
+      applyMicState();
+    });
+  }
+
+  if(rngSpkVol){
+    rngSpkVol.addEventListener('input', ()=>{
+      state.speakerVolume = clamp01(Number(rngSpkVol.value) / 100);
+      save(STORAGE.spkVolume, state.speakerVolume.toFixed(2));
+      syncStudentVolumeUi();
+      applySpeakerState();
     });
   }
 
@@ -1180,6 +1264,14 @@
   }
 
   function handleSnapshot(snap){
+    if(snap && snap.session){
+      const isActive = Number(snap.session.is_active || 0) === 1;
+      if(!isActive){
+        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman login...');
+        return;
+      }
+    }
+
     if(snap && Array.isArray(snap.participants)){
       for(const p of snap.participants){
         state.peers.set(p.id, p);
@@ -1364,7 +1456,7 @@
 
       if(t === 'session_ended'){
         appendChat('System', 'Sesi ditutup oleh admin.');
-        closeAllPeers(false);
+        leaveEndedSession('Sesi ditutup oleh admin. Mengarahkan ke halaman login...');
       }
 
       if(t === 'rtc_signal'){
@@ -1465,16 +1557,23 @@
     sendBeaconHangup();
   });
 
-  const poller = new window.EventPoller({
+  poller = new window.EventPoller({
     intervalMs: 1200,
     onSnapshot: handleSnapshot,
     onEvents: handleEvents,
     onPresence: function(){},
+    onError: function(err){
+      const status = Number(err && err.status ? err.status : 0);
+      if(status === 401 || status === 403){
+        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman login...');
+      }
+    },
   });
   poller.start();
 
   refreshMaterial();
   setAudioStatus('Tidak ada panggilan.');
+  syncStudentVolumeUi();
   applySpeakerState();
   syncMicBtn();
   syncSpkBtn();

@@ -89,7 +89,7 @@ $sessionHistory = $sessionHistory ?? [];
                 style="margin-top:4px"
               >
                 Batas: <?= $baseLimit ?> menit<?= $extensionMinutes > 0 ? ' (+' . $extensionMinutes . ' menit)' : '' ?>.
-                Sisa waktu: <span id="sessionRemainingLabel">menghitung...</span>
+                Sisa waktu: <b><span id="sessionRemainingLabel">menghitung...</span></b>
               </div>
             <?php endif; ?>
           </div>

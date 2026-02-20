@@ -99,8 +99,29 @@ class StudentController extends BaseController
         $sessionId = (int) session()->get('session_id');
         $participantId = (int) session()->get('participant_id');
 
+        if ($sessionId <= 0 || $participantId <= 0) {
+            return redirect()->to('/login');
+        }
+
+        $active = $this->getActiveSession();
+        if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
+            helper('remember');
+            session()->remove(['participant_id', 'session_id', 'student_name', 'class_name']);
+            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+            return redirect()->to('/login')->with('ok', 'Sesi sudah berakhir. Silakan tunggu sesi berikutnya.');
+        }
+
         $session = (new SessionModel())->find($sessionId);
-        $me = (new ParticipantModel())->find($participantId);
+        $me = (new ParticipantModel())
+            ->where('id', $participantId)
+            ->where('session_id', $sessionId)
+            ->first();
+        if (!$me) {
+            helper('remember');
+            session()->remove(['participant_id', 'session_id', 'student_name', 'class_name']);
+            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+            return redirect()->to('/login')->with('error', 'Data siswa pada sesi ini tidak ditemukan.');
+        }
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
         $currentMaterial = null;

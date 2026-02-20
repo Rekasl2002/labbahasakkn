@@ -20,6 +20,8 @@
     allowStudentMic: true,
     allowStudentSpeaker: true,
     adminSpeakerOn: true,
+    micVolume: 1,
+    speakerVolume: 1,
   };
   let sessionReloadQueued = false;
 
@@ -46,6 +48,10 @@
   const selAdminMic = document.getElementById('selAdminMic');
   const selAdminSpk = document.getElementById('selAdminSpk');
   const adminAudioIndicator = document.getElementById('adminAudioIndicator');
+  const rngAdminMicVol = document.getElementById('rngAdminMicVol');
+  const txtAdminMicVol = document.getElementById('txtAdminMicVol');
+  const rngAdminSpkVol = document.getElementById('rngAdminSpkVol');
+  const txtAdminSpkVol = document.getElementById('txtAdminSpkVol');
 
   const audioPool = (function(){
     const existing = document.getElementById('adminAudioPool');
@@ -76,12 +82,22 @@
     spk: 'lab_admin_spk_id',
     micLabel: 'lab_admin_mic_label',
     spkLabel: 'lab_admin_spk_label',
+    micVolume: 'lab_admin_mic_volume',
+    spkVolume: 'lab_admin_spk_volume',
   };
 
   let _renderScheduled = false;
 
   function esc(s){ return (s??'').toString().replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
   function nowTime(){ return new Date().toLocaleTimeString(); }
+  function clamp01(v){
+    const n = Number(v);
+    if(!Number.isFinite(n)) return 1;
+    return Math.min(1, Math.max(0, n));
+  }
+  function toPercentText(v){
+    return `${Math.round(clamp01(v) * 100)}%`;
+  }
 
   function setCallStatus(text){
     if(callStatusEl) callStatusEl.textContent = text || '';
@@ -138,6 +154,11 @@
       else localStorage.removeItem(key);
     }catch(e){}
   }
+  function readSavedVolume(key, fallback){
+    const raw = Number(getSaved(key));
+    if(!Number.isFinite(raw)) return fallback;
+    return clamp01(raw);
+  }
 
   function saveLabel(key, value){
     const v = (value || '').toString().trim();
@@ -161,6 +182,34 @@
   function pidOf(v){
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
+  }
+
+  state.micVolume = readSavedVolume(STORAGE.micVolume, 1);
+  state.speakerVolume = readSavedVolume(STORAGE.spkVolume, 1);
+
+  function syncAdminVolumeUi(){
+    const micPct = toPercentText(state.micVolume);
+    const spkPct = toPercentText(state.speakerVolume);
+    if(rngAdminMicVol) rngAdminMicVol.value = String(Math.round(clamp01(state.micVolume) * 100));
+    if(txtAdminMicVol) txtAdminMicVol.textContent = micPct;
+    if(rngAdminSpkVol) rngAdminSpkVol.value = String(Math.round(clamp01(state.speakerVolume) * 100));
+    if(txtAdminSpkVol) txtAdminSpkVol.textContent = spkPct;
+  }
+
+  function applyAdminSpeakerVolume(){
+    const vol = clamp01(state.speakerVolume);
+    if(adminRemoteAudio) adminRemoteAudio.volume = vol;
+    if(audioPool){
+      audioPool.querySelectorAll('audio').forEach(a=>{ a.volume = vol; });
+    }
+  }
+
+  function applyAdminMicVolume(){
+    const vol = clamp01(state.micVolume);
+    if(!rtc.localTrack) return;
+    if(typeof rtc.localTrack.applyConstraints === 'function'){
+      rtc.localTrack.applyConstraints({ advanced: [{ volume: vol }] }).catch(()=>{});
+    }
   }
 
   function applySpeakerDevice(){
@@ -207,6 +256,7 @@
     if(audioPool){
       audioPool.querySelectorAll('audio').forEach(a=> a.play().catch(()=>{ ok = false; }));
     }
+    applyAdminSpeakerVolume();
 
     state.audioUnlocked = ok;
     if(btnEnableAdminAudio) btnEnableAdminAudio.classList.toggle('ok', ok);
@@ -380,7 +430,7 @@
     rtc.localStream = await getUserMediaWithSelectedMic();
 
     rtc.localTrack = rtc.localStream.getAudioTracks()[0] || null;
-    if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+    applyAdminMic();
 
     return rtc.localStream;
   }
@@ -442,6 +492,7 @@
         if(audioEl){
           audioEl.srcObject = stream;
           audioEl.muted = !state.adminSpeakerOn;
+          applyAdminSpeakerVolume();
           applySpeakerDevice();
 
           if(state.audioUnlocked && state.adminSpeakerOn){
@@ -462,11 +513,12 @@
       }
     };
 
-    if(rtc.localStream && rtc.localStream.getTracks().length){
-      rtc.localStream.getTracks().forEach(t=>{
-        try{ pc.addTrack(t, rtc.localStream); }catch(e){}
-      });
-      if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+    if(rtc.localTrack){
+      try{
+        const streamForTrack = rtc.localStream || new MediaStream([rtc.localTrack]);
+        pc.addTrack(rtc.localTrack, streamForTrack);
+      }catch(e){}
+      applyAdminMic();
     }
 
     updateVoiceStatus();
@@ -488,13 +540,16 @@
   }
 
   function attachLocalTrackToAll(){
-    if(!rtc.localStream || !rtc.localTrack) return;
+    if(!rtc.localTrack) return;
     for(const peer of rtc.peers.values()){
       const sender = peer.pc.getSenders ? peer.pc.getSenders().find(s=> s.track && s.track.kind === 'audio') : null;
       if(sender){
         sender.replaceTrack(rtc.localTrack).catch(()=>{});
       }else{
-        try{ peer.pc.addTrack(rtc.localTrack, rtc.localStream); }catch(e){}
+        try{
+          const streamForTrack = rtc.localStream || new MediaStream([rtc.localTrack]);
+          peer.pc.addTrack(rtc.localTrack, streamForTrack);
+        }catch(e){}
       }
     }
   }
@@ -598,6 +653,7 @@
 
   function applyAdminSpeakerState(){
     if(adminRemoteAudio) adminRemoteAudio.muted = !state.adminSpeakerOn;
+    applyAdminSpeakerVolume();
     if(audioPool){
       audioPool.querySelectorAll('audio').forEach(a=>{
         a.muted = !state.adminSpeakerOn;
@@ -613,7 +669,8 @@
   }
 
   function applyAdminMic(){
-    if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+    applyAdminMicVolume();
+    if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn && state.micVolume > 0;
   }
 
   if(btnAdminSpk){
@@ -686,7 +743,7 @@
           }
           rtc.localStream = newStream;
           rtc.localTrack = newTrack;
-          if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+          applyAdminMic();
           if(oldStream) oldStream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
           renegotiateAllPeers();
           refreshDevices();
@@ -707,6 +764,24 @@
       const picked = state.devices.outputs.find(d=> d.deviceId === state.selectedSpkId);
       if(picked && picked.label) saveLabel(STORAGE.spkLabel, picked.label);
       applySpeakerDevice();
+    });
+  }
+
+  if(rngAdminMicVol){
+    rngAdminMicVol.addEventListener('input', ()=>{
+      state.micVolume = clamp01(Number(rngAdminMicVol.value) / 100);
+      save(STORAGE.micVolume, state.micVolume.toFixed(2));
+      syncAdminVolumeUi();
+      applyAdminMic();
+    });
+  }
+
+  if(rngAdminSpkVol){
+    rngAdminSpkVol.addEventListener('input', ()=>{
+      state.speakerVolume = clamp01(Number(rngAdminSpkVol.value) / 100);
+      save(STORAGE.spkVolume, state.speakerVolume.toFixed(2));
+      syncAdminVolumeUi();
+      applyAdminSpeakerState();
     });
   }
 
@@ -762,12 +837,15 @@
           sdp: data.sdp || ''
         }));
 
-        if(rtc.localStream && rtc.localStream.getTracks().length){
+        if(rtc.localTrack){
           const hasSender = pc.getSenders && pc.getSenders().some(s=> s.track && s.track.kind === 'audio');
           if(!hasSender){
-            rtc.localStream.getTracks().forEach(t=>{ try{ pc.addTrack(t, rtc.localStream); }catch(e){} });
+            try{
+              const streamForTrack = rtc.localStream || new MediaStream([rtc.localTrack]);
+              pc.addTrack(rtc.localTrack, streamForTrack);
+            }catch(e){}
           }
-          if(rtc.localTrack) rtc.localTrack.enabled = rtc.micOn;
+          applyAdminMic();
         }
 
         const answer = await pc.createAnswer();
@@ -1397,6 +1475,7 @@
   updateVoiceStatus();
   syncLockUI();
   syncAdminSpkBtn();
+  syncAdminVolumeUi();
   applyAdminSpeakerState();
   refreshDevices();
   setTimeout(()=>{ autoInitAudio().catch(()=>{}); }, 300);
