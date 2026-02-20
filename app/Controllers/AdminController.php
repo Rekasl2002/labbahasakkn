@@ -99,9 +99,11 @@ class AdminController extends BaseController
                 'limitText' => $this->sessionLimitText($data['session']),
             ]);
 
-            $options = new Options();
-            $options->set('isRemoteEnabled', false);
-            $options->set('defaultFont', 'DejaVu Sans');
+            if (!class_exists(Dompdf::class)) {
+                throw new \RuntimeException('Library dompdf/dompdf tidak tersedia di server.');
+            }
+
+            $options = $this->buildPdfOptions();
 
             $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
@@ -117,8 +119,18 @@ class AdminController extends BaseController
                 ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 ->setBody($pdfBytes);
         } catch (\Throwable $e) {
+            log_message('error', 'Gagal membuat PDF rekap sesi {sessionId}: {message}', [
+                'sessionId' => (string) $sessionId,
+                'message' => $e->getMessage(),
+            ]);
+
+            $errorMessage = 'Gagal membuat PDF rekap sesi.';
+            if (ENVIRONMENT !== 'production') {
+                $errorMessage .= ' ' . $e->getMessage();
+            }
+
             return redirect()->to('/admin/session/' . (int) $sessionId . '/recap')
-                ->with('error', 'Gagal membuat PDF rekap sesi.');
+                ->with('error', $errorMessage);
         }
     }
 
@@ -482,5 +494,42 @@ class AdminController extends BaseController
         }
 
         return 'rekap-sesi-' . $sessionId . '-' . $slug;
+    }
+
+    private function buildPdfOptions(): Options
+    {
+        $separator = DIRECTORY_SEPARATOR;
+        $cacheDir = rtrim(WRITEPATH, '\\/') . $separator . 'cache' . $separator . 'dompdf';
+        $fontDir = rtrim(WRITEPATH, '\\/') . $separator . 'fonts' . $separator . 'dompdf';
+
+        $this->ensureWritableDir($cacheDir);
+        $this->ensureWritableDir($fontDir);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isPhpEnabled', false);
+        $options->set('defaultFont', 'Helvetica');
+        $options->set('tempDir', $cacheDir);
+        $options->set('fontDir', $fontDir);
+        $options->set('fontCache', $fontDir);
+
+        $chroot = realpath(FCPATH . '..');
+        if (is_string($chroot) && $chroot !== '') {
+            $options->set('chroot', $chroot);
+        }
+
+        return $options;
+    }
+
+    private function ensureWritableDir(string $path): void
+    {
+        if (!is_dir($path) && !mkdir($path, 0775, true) && !is_dir($path)) {
+            throw new \RuntimeException('Tidak bisa membuat direktori writable: ' . $path);
+        }
+
+        if (!is_writable($path)) {
+            throw new \RuntimeException('Direktori tidak writable: ' . $path);
+        }
     }
 }
