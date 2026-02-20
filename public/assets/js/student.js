@@ -1374,6 +1374,32 @@
         scheduleVoiceCheck(200);
       }
 
+      if(t === 'participant_updated'){
+        const pid = Number(p.participant_id || p.id || 0);
+        if(!pid) continue;
+        const current = state.peers.get(pid) || { id: pid };
+        if(p.student_name !== undefined) current.student_name = p.student_name;
+        if(p.class_name !== undefined) current.class_name = p.class_name;
+        if(p.device_label !== undefined) current.device_label = p.device_label;
+        if(p.mic_on !== undefined) current.mic_on = p.mic_on ? 1 : 0;
+        if(p.speaker_on !== undefined) current.speaker_on = p.speaker_on ? 1 : 0;
+        if(current.student_name === undefined) current.student_name = 'Siswa ' + pid;
+        if(current.class_name === undefined) current.class_name = '-';
+        if(current.mic_on === undefined) current.mic_on = 0;
+        if(current.speaker_on === undefined) current.speaker_on = 1;
+        state.peers.set(pid, current);
+        renderPeers();
+
+        if(pid === myId){
+          state.myMicOn = !!current.mic_on;
+          state.mySpeakerOn = !!current.speaker_on;
+          applyMicState();
+          applySpeakerState();
+          syncMicBtn();
+          syncSpkBtn();
+        }
+      }
+
       if(t === 'mic_changed'){
         const x = state.peers.get(p.participant_id);
         if(x){ x.mic_on = p.mic_on ? 1 : 0; renderPeers(); }

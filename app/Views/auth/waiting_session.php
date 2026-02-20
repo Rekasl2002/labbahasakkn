@@ -3,16 +3,49 @@
 <h1>Menunggu Sesi Dimulai</h1>
 <p>Belum ada sesi aktif. Minta admin untuk klik <b>Mulai Sesi</b>.</p>
 
-<form method="post" action="/login/student" class="card" style="max-width:520px">
-  <h2>Info kamu</h2>
-  <input type="hidden" name="student_name" value="<?= esc($student_name ?? '') ?>">
-  <input type="hidden" name="class_name" value="<?= esc($class_name ?? '') ?>">
-  <input type="hidden" name="device_label" value="<?= esc($device_label ?? '') ?>">
-  <p><b><?= esc($student_name ?? '') ?></b> (<?= esc($class_name ?? '') ?>)</p>
-  <button type="submit">Coba gabung lagi</button>
-</form>
+<form method="post" action="/login/student" class="card" style="max-width:560px">
+  <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
 
-<script>
-  setTimeout(() => document.forms[0].submit(), 5000);
-</script>
+  <?php if (!empty($status_message ?? '')): ?>
+    <?php $statusType = (string) ($status_type ?? 'ok'); ?>
+    <div class="alert <?= $statusType === 'error' ? 'alert-error' : 'alert-ok' ?>"><?= esc((string) $status_message) ?></div>
+  <?php endif; ?>
+
+  <h2 style="margin:0 0 6px">Profil Siswa</h2>
+  <p class="muted tiny" style="margin:0 0 10px">
+    Ubah data langsung di sini atau lewat menu Pengaturan. Gabung sesi dilakukan manual dengan tombol "Gabung Lagi".
+  </p>
+
+  <label>Nama lengkap</label>
+  <input
+    name="student_name"
+    maxlength="60"
+    required
+    placeholder="Nama lengkap"
+    value="<?= esc($student_name ?? session('student_name') ?? '') ?>"
+  >
+
+  <label>Kelas</label>
+  <input
+    name="class_name"
+    maxlength="60"
+    required
+    placeholder="X IPA / XII IPS"
+    value="<?= esc($class_name ?? session('class_name') ?? '') ?>"
+  >
+
+  <label>Nama Komputer (opsional)</label>
+  <input
+    name="device_label"
+    maxlength="60"
+    placeholder="PC-01"
+    value="<?= esc($device_label ?? session('device_label') ?? '') ?>"
+  >
+
+  <div class="row gap wrap" style="margin-top:10px">
+    <button type="submit" formaction="/waiting/profile" class="ok">Simpan Profil Terbaru</button>
+    <a href="/logout/student" class="btn danger" onclick="return confirm('Keluar dari mode menunggu sesi?');">Logout Siswa</a>
+    <button type="submit">Gabung Lagi</button>
+  </div>
+</form>
 <?= $this->endSection() ?>

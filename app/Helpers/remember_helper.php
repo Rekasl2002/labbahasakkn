@@ -119,7 +119,9 @@ if (!function_exists('lab_restore_participant_from_cookie')) {
             'participant_id' => (int) $participant['id'],
             'student_name' => (string) ($participant['student_name'] ?? ''),
             'class_name' => (string) ($participant['class_name'] ?? ''),
+            'device_label' => (string) ($participant['device_label'] ?? ''),
         ]);
+        session()->remove(['student_waiting', 'waiting_student_profile']);
 
         $participantModel->update($participant['id'], [
             'last_seen_at' => date('Y-m-d H:i:s'),

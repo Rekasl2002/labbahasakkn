@@ -15,7 +15,15 @@ class EventApi extends BaseController
     private function clearStudentAuth(): void
     {
         helper('remember');
-        session()->remove(['participant_id', 'session_id', 'student_name', 'class_name']);
+        session()->remove([
+            'participant_id',
+            'session_id',
+            'student_name',
+            'class_name',
+            'device_label',
+            'student_waiting',
+            'waiting_student_profile',
+        ]);
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
     }
 

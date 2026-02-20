@@ -48,8 +48,13 @@ $routes->group('errors', static function ($routes) {
 $routes->get('login', 'AuthController::chooseRole');
 $routes->post('login/admin', 'AuthController::adminLogin');
 $routes->post('login/student', 'AuthController::studentLogin');
+$routes->post('waiting/profile', 'AuthController::saveWaitingProfile');
 $routes->get('logout', 'AuthController::logout');
 $routes->get('logout/student', 'AuthController::studentLogout');
+
+// Student settings (accessible while waiting session and while in session)
+$routes->get('student/settings', 'StudentController::settings');
+$routes->post('student/settings', 'StudentController::saveSettings');
 
 // Admin area
 $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
@@ -77,7 +82,6 @@ $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
 // Student area
 $routes->group('student', ['filter' => 'studentauth'], static function($routes) {
     $routes->get('/', 'StudentController::dashboard');
-    $routes->get('settings', 'StudentController::settings');
 });
 
 // API

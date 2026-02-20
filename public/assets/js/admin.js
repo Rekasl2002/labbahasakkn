@@ -970,6 +970,24 @@
         scheduleRenderParticipants();
       }
 
+      if(t === 'participant_updated'){
+        const pid = pidOf(p.participant_id || p.id);
+        if(!pid) continue;
+        const current = state.participants.get(pid) || { id: pid };
+        if(p.student_name !== undefined) current.student_name = p.student_name;
+        if(p.class_name !== undefined) current.class_name = p.class_name;
+        if(p.device_label !== undefined) current.device_label = p.device_label;
+        if(p.ip_address !== undefined) current.ip_address = p.ip_address;
+        if(p.mic_on !== undefined) current.mic_on = p.mic_on ? 1 : 0;
+        if(p.speaker_on !== undefined) current.speaker_on = p.speaker_on ? 1 : 0;
+        if(current.student_name === undefined) current.student_name = 'Siswa ' + pid;
+        if(current.class_name === undefined) current.class_name = '-';
+        if(current.mic_on === undefined) current.mic_on = 0;
+        if(current.speaker_on === undefined) current.speaker_on = 1;
+        state.participants.set(pid, current);
+        scheduleRenderParticipants();
+      }
+
       if(t === 'mic_changed'){
         const x = state.participants.get(pidOf(p.participant_id));
         if(x){ x.mic_on = p.mic_on ? 1 : 0; scheduleRenderParticipants(); }

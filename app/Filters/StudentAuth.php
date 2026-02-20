@@ -41,7 +41,15 @@ class StudentAuth implements FilterInterface
             return;
         }
 
-        $session->remove(['participant_id', 'session_id', 'student_name', 'class_name']);
+        $session->remove([
+            'participant_id',
+            'session_id',
+            'student_name',
+            'class_name',
+            'device_label',
+            'student_waiting',
+            'waiting_student_profile',
+        ]);
 
         $resp = redirect()->to('/login')->with('ok', 'Sesi sudah berakhir. Silakan tunggu sesi berikutnya.');
         $resp->deleteCookie(LAB_COOKIE_PARTICIPANT);

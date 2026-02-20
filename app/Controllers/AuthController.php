@@ -10,6 +10,23 @@ use App\Models\SessionStateModel;
 
 class AuthController extends BaseController
 {
+    private function waitingViewData(
+        string $studentName,
+        string $className,
+        string $deviceLabel,
+        string $statusMessage = '',
+        string $statusType = 'ok'
+    ): array
+    {
+        return [
+            'student_name' => $studentName,
+            'class_name' => $className,
+            'device_label' => $deviceLabel,
+            'status_message' => $statusMessage,
+            'status_type' => $statusType === 'error' ? 'error' : 'ok',
+        ];
+    }
+
     public function chooseRole()
     {
         if (session()->get('admin_id')) {
@@ -98,11 +115,21 @@ class AuthController extends BaseController
         }
 
         if (!$active) {
-            return view('auth/waiting_session', [
+            session()->set([
+                'student_waiting' => 1,
+                'waiting_student_profile' => [
+                    'student_name' => $studentName,
+                    'class_name' => $className,
+                    'device_label' => $deviceLabel,
+                ],
                 'student_name' => $studentName,
                 'class_name' => $className,
                 'device_label' => $deviceLabel,
             ]);
+            session()->remove(['participant_id', 'session_id']);
+            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+
+            return view('auth/waiting_session', $this->waitingViewData($studentName, $className, $deviceLabel));
         }
 
         $participantModel = new ParticipantModel();
@@ -165,7 +192,9 @@ class AuthController extends BaseController
             'participant_id' => $participantId,
             'student_name' => $studentName,
             'class_name' => $className,
+            'device_label' => $deviceLabel,
         ]);
+        session()->remove(['student_waiting', 'waiting_student_profile']);
 
         $this->response->setCookie(
             LAB_COOKIE_PARTICIPANT,
@@ -191,6 +220,42 @@ class AuthController extends BaseController
         return redirect()->to('/student');
     }
 
+    public function saveWaitingProfile()
+    {
+        $studentName = trim((string) $this->request->getPost('student_name'));
+        $className   = trim((string) $this->request->getPost('class_name'));
+        $deviceLabel = trim((string) $this->request->getPost('device_label'));
+
+        if ($studentName === '' || $className === '') {
+            return view('auth/waiting_session', $this->waitingViewData(
+                $studentName,
+                $className,
+                $deviceLabel,
+                'Nama lengkap dan kelas wajib diisi.',
+                'error'
+            ));
+        }
+
+        session()->set([
+            'student_waiting' => 1,
+            'waiting_student_profile' => [
+                'student_name' => $studentName,
+                'class_name' => $className,
+                'device_label' => $deviceLabel,
+            ],
+            'student_name' => $studentName,
+            'class_name' => $className,
+            'device_label' => $deviceLabel,
+        ]);
+
+        return view('auth/waiting_session', $this->waitingViewData(
+            $studentName,
+            $className,
+            $deviceLabel,
+            'Profil siswa berhasil disimpan.'
+        ));
+    }
+
     public function logout()
     {
         helper('remember');
@@ -206,6 +271,7 @@ class AuthController extends BaseController
 
         $sessionId = (int) session()->get('session_id');
         $participantId = (int) session()->get('participant_id');
+        $wasWaitingMode = (bool) session()->get('student_waiting');
         $active = $this->getActiveSessionRaw();
         $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
 
@@ -246,9 +312,12 @@ class AuthController extends BaseController
             }
         }
 
+        $msg = $isCurrentSessionActive
+            ? 'Sesi siswa telah diakhiri.'
+            : ($wasWaitingMode ? 'Kamu telah keluar dari mode menunggu sesi.' : 'Sesi sudah berakhir. Kamu telah keluar.');
+
         session()->destroy();
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
-        $msg = $isCurrentSessionActive ? 'Sesi siswa telah diakhiri.' : 'Sesi sudah berakhir. Kamu telah keluar.';
         return redirect()->to('/')->with('ok', $msg);
     }
 }
