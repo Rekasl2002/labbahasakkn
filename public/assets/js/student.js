@@ -119,6 +119,62 @@
     if(audioStatusEl) audioStatusEl.textContent = text || '';
   }
 
+  function showWarningBanner(message){
+    const id = 'studentWarningBanner';
+    let el = document.getElementById(id);
+    if(!el){
+      el = document.createElement('div');
+      el.id = id;
+      el.style.position = 'fixed';
+      el.style.top = '12px';
+      el.style.left = '50%';
+      el.style.transform = 'translateX(-50%)';
+      el.style.maxWidth = '92vw';
+      el.style.padding = '10px 14px';
+      el.style.background = '#7f1d1d';
+      el.style.color = '#fff';
+      el.style.border = '1px solid rgba(255,255,255,0.28)';
+      el.style.borderRadius = '10px';
+      el.style.boxShadow = '0 12px 28px rgba(0,0,0,0.28)';
+      el.style.zIndex = '9999';
+      el.style.fontWeight = '700';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+    }
+    el.textContent = message || 'Peringatan dari guru.';
+    el.style.display = 'block';
+    if(showWarningBanner._timer) clearTimeout(showWarningBanner._timer);
+    showWarningBanner._timer = setTimeout(()=>{ el.style.display = 'none'; }, 7000);
+  }
+
+  function playWarningTone(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      const ctx = new AC();
+      const startAt = ctx.currentTime + 0.02;
+
+      const beep = (offset, freq, dur, gain)=>{
+        const osc = ctx.createOscillator();
+        const amp = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        amp.gain.setValueAtTime(0.0001, startAt + offset);
+        amp.gain.exponentialRampToValueAtTime(gain, startAt + offset + 0.01);
+        amp.gain.exponentialRampToValueAtTime(0.0001, startAt + offset + dur);
+        osc.connect(amp);
+        amp.connect(ctx.destination);
+        osc.start(startAt + offset);
+        osc.stop(startAt + offset + dur + 0.02);
+      };
+
+      ctx.resume().catch(()=>{});
+      beep(0.00, 880, 0.18, 0.22);
+      beep(0.22, 660, 0.22, 0.18);
+      setTimeout(()=>{ ctx.close().catch(()=>{}); }, 1000);
+    }catch(e){}
+  }
+
   function leaveEndedSession(message){
     if(sessionExitQueued) return;
     sessionExitQueued = true;
@@ -1478,6 +1534,16 @@
 
       if(t === 'material_media_control'){
         applyMediaControl(p);
+      }
+
+      if(t === 'admin_warning'){
+        const msg = (p.message || 'Peringatan dari guru.').toString();
+        appendChat('Peringatan Guru', msg);
+        setAudioStatus(msg);
+        showWarningBanner(msg);
+        if(Number(p.play_sound || 0) === 1){
+          playWarningTone();
+        }
       }
 
       if(t === 'session_ended'){

@@ -143,7 +143,7 @@ $sessionHistory = $sessionHistory ?? [];
         <div>
           <h2 style="margin:0">Komputer / Peserta</h2>
           <div class="muted tiny" style="margin-top:4px">
-            Online ditentukan dari heartbeat (≤ 35 detik).
+            Online ditentukan dari presence aktif (ping 2 detik, timeout sekitar 6 detik).
           </div>
         </div>
         <div class="muted tiny" style="text-align:right">

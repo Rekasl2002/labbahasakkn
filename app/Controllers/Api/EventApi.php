@@ -12,6 +12,8 @@ use App\Models\MaterialFileModel;
 
 class EventApi extends BaseController
 {
+    private int $onlineWindowSeconds = 6;
+
     private function clearStudentAuth(): void
     {
         helper('remember');
@@ -188,27 +190,13 @@ class EventApi extends BaseController
         // Validasi siswa benar-benar milik session ini (anti mismatch)
         if (!$isAdmin) {
             $pm = new ParticipantModel();
-            $me = $pm->select('id,session_id,last_seen_at')
+            $me = $pm->select('id,session_id')
                 ->where('id', $participantId)
                 ->first();
 
             if (!$me || (int) $me['session_id'] !== $sessionId) {
                 $this->clearStudentAuth();
                 return $this->jsonNoStore(['ok' => false, 'error' => 'Invalid session'], 401);
-            }
-
-            // Throttle heartbeat update biar tidak update DB setiap 1.2 detik
-            // Update hanya jika last_seen_at kosong atau sudah lebih dari 10 detik
-            $nowTs = time();
-            $lastSeenTs = !empty($me['last_seen_at']) ? strtotime($me['last_seen_at']) : 0;
-
-            $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
-            if ($isCurrentSessionActive && ($lastSeenTs <= 0 || ($nowTs - $lastSeenTs) >= 10)) {
-                // Pakai query builder langsung agar ringan
-                $db = db_connect();
-                $db->table('participants')
-                    ->where('id', $participantId)
-                    ->update(['last_seen_at' => date('Y-m-d H:i:s')]);
             }
         }
 
@@ -233,7 +221,7 @@ class EventApi extends BaseController
 
         // Presence map (dipakai admin.js)
         $presenceRows = (new ParticipantModel())
-            ->select('id,last_seen_at')
+            ->select('id,last_seen_at,presence_state,presence_page,presence_reason,presence_updated_at')
             ->where('session_id', $sessionId)
             ->findAll();
 
@@ -241,9 +229,35 @@ class EventApi extends BaseController
         $presence = [];
         foreach ($presenceRows as $r) {
             $seen = !empty($r['last_seen_at']) ? strtotime($r['last_seen_at']) : 0;
+            $state = strtolower(trim((string) ($r['presence_state'] ?? '')));
+            $page = strtolower(trim((string) ($r['presence_page'] ?? '')));
+            $reason = strtolower(trim((string) ($r['presence_reason'] ?? '')));
+            $isOnline = ($state === 'active' && $seen > 0 && ($now - $seen) <= $this->onlineWindowSeconds);
+
+            if ($page === '') {
+                $page = 'other';
+            }
+
+            if (!$isOnline) {
+                if ($state === 'active' && ($reason === '' || $reason === 'active')) {
+                    $reason = 'heartbeat_timeout';
+                } elseif ($reason === '') {
+                    if ($state === 'away') {
+                        $reason = 'tab_hidden';
+                    } else {
+                        $reason = 'heartbeat_timeout';
+                    }
+                }
+            }
+
             $presence[] = [
                 'id' => (int) $r['id'],
-                'online' => ($seen > 0 && ($now - $seen) <= 35),
+                'online' => $isOnline,
+                'state' => $isOnline ? 'online' : ($state === 'away' ? 'away' : 'offline'),
+                'page' => $page,
+                'reason' => $reason,
+                'last_seen_at' => (string) ($r['last_seen_at'] ?? ''),
+                'presence_updated_at' => (string) ($r['presence_updated_at'] ?? ''),
             ];
         }
         $payload['presence'] = $presence;

@@ -1,7 +1,7 @@
 <?= $this->extend('layout/main') ?>
 <?= $this->section('content') ?>
 <h1>Menunggu Sesi Dimulai</h1>
-<p>Belum ada sesi aktif. Minta admin untuk klik <b>Mulai Sesi</b>.</p>
+<p>Belum ada <b>Sesi yang Aktif</b> atau<b> Sesi Telah Selesai</b>.</p>
 
 <form method="post" action="/login/student" class="card" style="max-width:560px">
   <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>

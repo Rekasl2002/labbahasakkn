@@ -10,6 +10,7 @@ $tab = $tab ?? ($role === 'admin' ? 'auto-detect' : 'general');
 $links = [];
 if ($role === 'admin') {
     $links = [
+        'branding' => 'Nama Aplikasi & Logo',
         'auto-detect' => 'Auto-Deteksi Komputer Siswa',
         'password' => 'Ganti Password Admin',
         'materials' => 'Manajemen Materi',

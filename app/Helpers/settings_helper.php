@@ -11,6 +11,9 @@ if (!function_exists('lab_default_settings')) {
     function lab_default_settings(): array
     {
         return [
+            'app_name' => 'Lab Bahasa',
+            'logo_path' => '/favicon.ico',
+            'favicon_path' => '/favicon.ico',
             'ip_range_start' => '192.168.100.101',
             'ip_range_end' => '192.168.100.140',
             'label_format' => 'Komputer {n}',
@@ -54,7 +57,8 @@ if (!function_exists('lab_save_settings')) {
     function lab_save_settings(array $data): bool
     {
         $defaults = lab_default_settings();
-        $clean = array_merge($defaults, array_intersect_key($data, $defaults));
+        $current = lab_load_settings();
+        $clean = array_merge($current, array_intersect_key($data, $defaults));
         foreach ($clean as $key => $value) {
             if (is_string($value)) {
                 $clean[$key] = trim($value);
@@ -149,5 +153,58 @@ if (!function_exists('lab_device_label_for_ip')) {
         }
 
         return str_replace('{n}', (string) $n, $format);
+    }
+}
+
+if (!function_exists('lab_asset_public_url')) {
+    function lab_asset_public_url(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return base_url('favicon.ico');
+        }
+
+        if (preg_match('~^(https?:)?//~i', $path) === 1 || str_starts_with($path, 'data:')) {
+            return $path;
+        }
+
+        $normalized = '/' . ltrim(str_replace('\\', '/', $path), '/');
+        $full = ROOTPATH . 'public' . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+
+        if (is_file($full)) {
+            return base_url(ltrim($normalized, '/')) . '?v=' . filemtime($full);
+        }
+
+        return base_url(ltrim($normalized, '/'));
+    }
+}
+
+if (!function_exists('lab_app_branding')) {
+    function lab_app_branding(?array $settings = null): array
+    {
+        $settings = $settings ?? lab_load_settings();
+
+        $appName = trim((string) ($settings['app_name'] ?? ''));
+        if ($appName === '') {
+            $appName = 'Lab Bahasa';
+        }
+
+        $logoPath = trim((string) ($settings['logo_path'] ?? ''));
+        if ($logoPath === '') {
+            $logoPath = '/favicon.ico';
+        }
+
+        $faviconPath = trim((string) ($settings['favicon_path'] ?? ''));
+        if ($faviconPath === '') {
+            $faviconPath = $logoPath;
+        }
+
+        return [
+            'app_name' => $appName,
+            'logo_path' => $logoPath,
+            'favicon_path' => $faviconPath,
+            'logo_url' => lab_asset_public_url($logoPath),
+            'favicon_url' => lab_asset_public_url($faviconPath),
+        ];
     }
 }

@@ -141,7 +141,7 @@ class AdminController extends BaseController
 
         $tab = (string) $this->request->getGet('tab');
         $tab = $tab !== '' ? $tab : 'auto-detect';
-        $allowedTabs = ['auto-detect', 'password', 'materials'];
+        $allowedTabs = ['branding', 'auto-detect', 'password', 'materials'];
         $embed = (string) $this->request->getGet('embed') === '1';
 
         $editId = (int) $this->request->getGet('edit_id');
@@ -208,6 +208,18 @@ class AdminController extends BaseController
     {
         helper('settings');
 
+        $group = trim((string) $this->request->getPost('setting_group'));
+        if ($group === 'branding') {
+            return $this->saveBrandingSettings();
+        }
+
+        return $this->saveAutoDetectSettings();
+    }
+
+    private function saveAutoDetectSettings()
+    {
+        helper('settings');
+
         $ipStart = $this->postString('ip_range_start', 60);
         $ipEnd = $this->postString('ip_range_end', 60);
         $labelFormat = $this->postString('label_format', 80);
@@ -235,20 +247,193 @@ class AdminController extends BaseController
             return redirect()->back()->with('error', implode(' ', $errors));
         }
 
-        $ok = lab_save_settings([
+        $current = lab_load_settings();
+        $ok = lab_save_settings(array_merge($current, [
             'ip_range_start' => $ipStart,
             'ip_range_end' => $ipEnd,
             'label_format' => $labelFormat,
             'label_list' => $labelList,
-        ]);
+        ]));
 
         if (!$ok) {
             return redirect()->back()->with('error', 'Gagal menyimpan pengaturan.');
         }
 
-        $embed = (string) $this->request->getPost('embed') === '1' || (string) $this->request->getGet('embed') === '1';
+        $embed = $this->isEmbedSettingsRequest();
         $target = '/admin/settings?tab=auto-detect' . ($embed ? '&embed=1' : '');
         return redirect()->to($target)->with('ok', 'Pengaturan disimpan.');
+    }
+
+    private function saveBrandingSettings()
+    {
+        helper('settings');
+
+        $current = lab_load_settings();
+        $appName = trim($this->postString('app_name', 80));
+        $errors = [];
+
+        if ($appName === '') {
+            $errors[] = 'Nama aplikasi wajib diisi.';
+        }
+
+        $oldLogoPath = trim((string) ($current['logo_path'] ?? ''));
+        $oldFaviconPath = trim((string) ($current['favicon_path'] ?? ''));
+        $newLogoPath = $oldLogoPath !== '' ? $oldLogoPath : '/favicon.ico';
+        $newFaviconPath = $oldFaviconPath !== '' ? $oldFaviconPath : $newLogoPath;
+        $logoReplaced = false;
+        $faviconReplaced = false;
+        $uploadedPaths = [];
+
+        $logoFile = $this->request->getFile('app_logo');
+        if ($logoFile && (int) $logoFile->getError() !== UPLOAD_ERR_NO_FILE) {
+            $logoUpload = $this->storeBrandingUpload($logoFile, 'logo');
+            if (!empty($logoUpload['error'])) {
+                $errors[] = (string) $logoUpload['error'];
+            } elseif (!empty($logoUpload['path'])) {
+                $newLogoPath = (string) $logoUpload['path'];
+                $logoReplaced = true;
+                $uploadedPaths[] = $newLogoPath;
+            }
+        }
+
+        $faviconFile = $this->request->getFile('app_favicon');
+        if ($faviconFile && (int) $faviconFile->getError() !== UPLOAD_ERR_NO_FILE) {
+            $faviconUpload = $this->storeBrandingUpload($faviconFile, 'favicon');
+            if (!empty($faviconUpload['error'])) {
+                $errors[] = (string) $faviconUpload['error'];
+            } elseif (!empty($faviconUpload['path'])) {
+                $newFaviconPath = (string) $faviconUpload['path'];
+                $faviconReplaced = true;
+                $uploadedPaths[] = $newFaviconPath;
+            }
+        }
+
+        if (
+            $logoReplaced
+            && !$faviconReplaced
+            && (
+                $oldFaviconPath === ''
+                || $oldFaviconPath === '/favicon.ico'
+                || $oldFaviconPath === $oldLogoPath
+            )
+        ) {
+            $newFaviconPath = $newLogoPath;
+        }
+
+        if ($newFaviconPath === '') {
+            $newFaviconPath = $newLogoPath;
+        }
+
+        if (!empty($errors)) {
+            foreach ($uploadedPaths as $uploadedPath) {
+                $this->deleteManagedBrandingFile((string) $uploadedPath);
+            }
+            return redirect()->back()->with('error', implode(' ', $errors));
+        }
+
+        $ok = lab_save_settings(array_merge($current, [
+            'app_name' => $appName,
+            'logo_path' => $newLogoPath,
+            'favicon_path' => $newFaviconPath,
+        ]));
+
+        if (!$ok) {
+            foreach ($uploadedPaths as $uploadedPath) {
+                $this->deleteManagedBrandingFile((string) $uploadedPath);
+            }
+            return redirect()->back()->with('error', 'Gagal menyimpan branding aplikasi.');
+        }
+
+        if ($logoReplaced && $oldLogoPath !== '' && $oldLogoPath !== $newLogoPath && $oldLogoPath !== $newFaviconPath) {
+            $this->deleteManagedBrandingFile($oldLogoPath);
+        }
+
+        if ($faviconReplaced && $oldFaviconPath !== '' && $oldFaviconPath !== $newFaviconPath && $oldFaviconPath !== $newLogoPath) {
+            $this->deleteManagedBrandingFile($oldFaviconPath);
+        }
+
+        $embed = $this->isEmbedSettingsRequest();
+        $target = '/admin/settings?tab=branding' . ($embed ? '&embed=1' : '');
+        return redirect()->to($target)->with('ok', 'Branding aplikasi disimpan.');
+    }
+
+    private function isEmbedSettingsRequest(): bool
+    {
+        return (string) $this->request->getPost('embed') === '1'
+            || (string) $this->request->getGet('embed') === '1';
+    }
+
+    private function storeBrandingUpload($file, string $kind): array
+    {
+        if (!$file || !$file->isValid()) {
+            return ['error' => 'File ' . $kind . ' tidak valid.'];
+        }
+
+        $maxBytes = 2 * 1024 * 1024;
+        if ((int) $file->getSize() > $maxBytes) {
+            return ['error' => 'Ukuran file ' . $kind . ' maksimal 2MB.'];
+        }
+
+        $allowedMimes = [
+            'image/png',
+            'image/jpeg',
+            'image/webp',
+            'image/svg+xml',
+            'image/x-icon',
+            'image/vnd.microsoft.icon',
+        ];
+        $allowedExt = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'ico'];
+
+        $mime = strtolower((string) $file->getClientMimeType());
+        if ($mime !== '' && !in_array($mime, $allowedMimes, true)) {
+            return ['error' => 'Format file ' . $kind . ' tidak didukung.'];
+        }
+
+        $ext = strtolower((string) $file->getClientExtension());
+        if ($ext === '') {
+            $ext = strtolower((string) $file->guessExtension());
+        }
+        if ($ext === '') {
+            $ext = $kind === 'favicon' ? 'ico' : 'png';
+        }
+
+        if (!in_array($ext, $allowedExt, true)) {
+            return ['error' => 'Ekstensi file ' . $kind . ' tidak didukung.'];
+        }
+
+        $dir = ROOTPATH . 'public/uploads/branding';
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return ['error' => 'Folder upload branding tidak dapat dibuat.'];
+        }
+
+        try {
+            $token = bin2hex(random_bytes(6));
+        } catch (\Throwable $e) {
+            $token = preg_replace('/[^a-zA-Z0-9]/', '', uniqid('', true));
+        }
+
+        $safeName = $kind . '-' . date('YmdHis') . '-' . $token . '.' . $ext;
+
+        try {
+            $file->move($dir, $safeName, true);
+        } catch (\Throwable $e) {
+            return ['error' => 'Upload file ' . $kind . ' gagal diproses.'];
+        }
+
+        return ['path' => '/uploads/branding/' . $safeName];
+    }
+
+    private function deleteManagedBrandingFile(string $path): void
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/uploads/branding/')) {
+            return;
+        }
+
+        $filePath = ROOTPATH . 'public' . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (is_file($filePath)) {
+            @unlink($filePath);
+        }
     }
 
     public function updatePassword()

@@ -300,17 +300,24 @@ class StudentController extends BaseController
         }
 
         if ($mode === 'waiting') {
+            helper('remember');
+            $waitingProfile = [
+                'student_name' => $studentName,
+                'class_name' => $className,
+                'device_label' => $deviceLabel,
+            ];
             session()->set([
                 'student_waiting' => 1,
-                'waiting_student_profile' => [
-                    'student_name' => $studentName,
-                    'class_name' => $className,
-                    'device_label' => $deviceLabel,
-                ],
+                'waiting_student_profile' => $waitingProfile,
                 'student_name' => $studentName,
                 'class_name' => $className,
                 'device_label' => $deviceLabel,
             ]);
+            $this->response->setCookie(
+                LAB_COOKIE_WAITING,
+                lab_waiting_profile_pack($waitingProfile),
+                lab_remember_expire_seconds()
+            );
 
             return redirect()->to($target)->with('ok', 'Profil siswa berhasil diperbarui.');
         }

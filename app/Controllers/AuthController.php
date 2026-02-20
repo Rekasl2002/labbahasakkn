@@ -27,7 +27,136 @@ class AuthController extends BaseController
         ];
     }
 
+    private function normalizeWaitingProfile(array $profile): ?array
+    {
+        helper('remember');
+        $normalized = lab_waiting_profile_normalize($profile);
+        if (!$normalized) {
+            return null;
+        }
+        return $normalized;
+    }
+
+    private function waitingProfileFromSessionOrCookie(): ?array
+    {
+        $sessionProfile = session('waiting_student_profile');
+        if (is_array($sessionProfile)) {
+            $normalized = $this->normalizeWaitingProfile($sessionProfile);
+            if ($normalized) {
+                return $normalized;
+            }
+        }
+
+        helper('remember');
+        if (lab_restore_waiting_from_cookie($this->request)) {
+            $sessionProfile = session('waiting_student_profile');
+            if (is_array($sessionProfile)) {
+                return $this->normalizeWaitingProfile($sessionProfile);
+            }
+        }
+
+        return null;
+    }
+
+    private function persistWaitingProfile(array $profile, bool $clearParticipant = false): void
+    {
+        $normalized = $this->normalizeWaitingProfile($profile);
+        if (!$normalized) {
+            return;
+        }
+
+        session()->set([
+            'student_waiting' => 1,
+            'waiting_student_profile' => $normalized,
+            'student_name' => $normalized['student_name'],
+            'class_name' => $normalized['class_name'],
+            'device_label' => $normalized['device_label'],
+        ]);
+
+        helper('remember');
+        $this->response->setCookie(
+            LAB_COOKIE_WAITING,
+            lab_waiting_profile_pack($normalized),
+            lab_remember_expire_seconds()
+        );
+
+        if ($clearParticipant) {
+            session()->remove(['participant_id', 'session_id']);
+            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+        }
+    }
+
+    private function clearWaitingProfileState(): void
+    {
+        session()->remove(['student_waiting', 'waiting_student_profile']);
+        helper('remember');
+        $this->response->deleteCookie(LAB_COOKIE_WAITING);
+    }
+
     public function chooseRole()
+    {
+        $forceLoggedOut = (string) $this->request->getGet('logged_out') !== '';
+        if ($forceLoggedOut) {
+            helper('remember');
+            session()->remove([
+                'participant_id',
+                'session_id',
+                'student_name',
+                'class_name',
+                'device_label',
+                'student_waiting',
+                'waiting_student_profile',
+            ]);
+            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+            $this->response->deleteCookie(LAB_COOKIE_WAITING);
+            $this->response->deleteCookie(LAB_COOKIE_DEVICE);
+        }
+
+        if ($forceLoggedOut) {
+            helper('settings');
+            $clientIp = (string) $this->request->getIPAddress();
+            $settings = lab_load_settings();
+            $deviceLabel = lab_device_label_for_ip($clientIp, $settings);
+
+            return view('auth/choose_role', [
+                'client_ip' => $clientIp,
+                'device_label' => $deviceLabel,
+            ]);
+        }
+
+        if (session()->get('admin_id')) {
+            return redirect()->to('/admin');
+        }
+
+        if (session()->get('participant_id') && session()->get('session_id')) {
+            return redirect()->to('/student');
+        }
+
+        helper('remember');
+        if (lab_restore_admin_from_cookie($this->request)) {
+            return redirect()->to('/admin');
+        }
+        if (lab_restore_participant_from_cookie($this->request)) {
+            return redirect()->to('/student');
+        }
+
+        $waitingProfile = $this->waitingProfileFromSessionOrCookie();
+        if ($waitingProfile) {
+            return redirect()->to('/waiting');
+        }
+
+        helper('settings');
+        $clientIp = (string) $this->request->getIPAddress();
+        $settings = lab_load_settings();
+        $deviceLabel = lab_device_label_for_ip($clientIp, $settings);
+
+        return view('auth/choose_role', [
+            'client_ip' => $clientIp,
+            'device_label' => $deviceLabel,
+        ]);
+    }
+
+    public function waitingSession()
     {
         if (session()->get('admin_id')) {
             return redirect()->to('/admin');
@@ -45,15 +174,16 @@ class AuthController extends BaseController
             return redirect()->to('/student');
         }
 
-        helper('settings');
-        $clientIp = (string) $this->request->getIPAddress();
-        $settings = lab_load_settings();
-        $deviceLabel = lab_device_label_for_ip($clientIp, $settings);
+        $waitingProfile = $this->waitingProfileFromSessionOrCookie();
+        if (!$waitingProfile) {
+            return redirect()->to('/login')->with('error', 'Data menunggu sesi tidak ditemukan. Silakan isi lagi.');
+        }
 
-        return view('auth/choose_role', [
-            'client_ip' => $clientIp,
-            'device_label' => $deviceLabel,
-        ]);
+        return $this->continueStudentLogin(
+            (string) $waitingProfile['student_name'],
+            (string) $waitingProfile['class_name'],
+            (string) $waitingProfile['device_label']
+        );
     }
 
     public function adminLogin()
@@ -87,18 +217,24 @@ class AuthController extends BaseController
 
     public function studentLogin()
     {
-        helper('remember');
         $studentName = trim((string) $this->request->getPost('student_name'));
         $className   = trim((string) $this->request->getPost('class_name'));
         $deviceLabel = trim((string) $this->request->getPost('device_label'));
 
+        if ($studentName === '' || $className === '') {
+            return redirect()->back()->with('error', 'Nama & kelas wajib.');
+        }
+
+        return $this->continueStudentLogin($studentName, $className, $deviceLabel);
+    }
+
+    private function continueStudentLogin(string $studentName, string $className, string $deviceLabel)
+    {
+        helper('remember');
+
         if ($deviceLabel === '') {
             helper('settings');
             $deviceLabel = lab_device_label_for_ip((string) $this->request->getIPAddress());
-        }
-
-        if ($studentName === '' || $className === '') {
-            return redirect()->back()->with('error', 'Nama & kelas wajib.');
         }
 
         $active = $this->getActiveSession();
@@ -115,19 +251,11 @@ class AuthController extends BaseController
         }
 
         if (!$active) {
-            session()->set([
-                'student_waiting' => 1,
-                'waiting_student_profile' => [
-                    'student_name' => $studentName,
-                    'class_name' => $className,
-                    'device_label' => $deviceLabel,
-                ],
+            $this->persistWaitingProfile([
                 'student_name' => $studentName,
                 'class_name' => $className,
                 'device_label' => $deviceLabel,
-            ]);
-            session()->remove(['participant_id', 'session_id']);
-            $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+            ], true);
 
             return view('auth/waiting_session', $this->waitingViewData($studentName, $className, $deviceLabel));
         }
@@ -171,6 +299,10 @@ class AuthController extends BaseController
                 'ip_address' => $this->request->getIPAddress(),
                 'last_seen_at' => date('Y-m-d H:i:s'),
                 'left_at' => null,
+                'presence_state' => 'active',
+                'presence_page' => 'session',
+                'presence_reason' => 'active',
+                'presence_updated_at' => date('Y-m-d H:i:s'),
             ]);
         } else {
             $participantId = $participantModel->insert([
@@ -184,6 +316,10 @@ class AuthController extends BaseController
                 'speaker_on'    => 1,
                 'joined_at'     => date('Y-m-d H:i:s'),
                 'last_seen_at'  => date('Y-m-d H:i:s'),
+                'presence_state' => 'active',
+                'presence_page' => 'session',
+                'presence_reason' => 'active',
+                'presence_updated_at' => date('Y-m-d H:i:s'),
             ], true);
         }
 
@@ -194,7 +330,7 @@ class AuthController extends BaseController
             'class_name' => $className,
             'device_label' => $deviceLabel,
         ]);
-        session()->remove(['student_waiting', 'waiting_student_profile']);
+        $this->clearWaitingProfileState();
 
         $this->response->setCookie(
             LAB_COOKIE_PARTICIPANT,
@@ -226,7 +362,12 @@ class AuthController extends BaseController
         $className   = trim((string) $this->request->getPost('class_name'));
         $deviceLabel = trim((string) $this->request->getPost('device_label'));
 
-        if ($studentName === '' || $className === '') {
+        $profile = $this->normalizeWaitingProfile([
+            'student_name' => $studentName,
+            'class_name' => $className,
+            'device_label' => $deviceLabel,
+        ]);
+        if (!$profile) {
             return view('auth/waiting_session', $this->waitingViewData(
                 $studentName,
                 $className,
@@ -236,22 +377,12 @@ class AuthController extends BaseController
             ));
         }
 
-        session()->set([
-            'student_waiting' => 1,
-            'waiting_student_profile' => [
-                'student_name' => $studentName,
-                'class_name' => $className,
-                'device_label' => $deviceLabel,
-            ],
-            'student_name' => $studentName,
-            'class_name' => $className,
-            'device_label' => $deviceLabel,
-        ]);
+        $this->persistWaitingProfile($profile);
 
         return view('auth/waiting_session', $this->waitingViewData(
-            $studentName,
-            $className,
-            $deviceLabel,
+            (string) $profile['student_name'],
+            (string) $profile['class_name'],
+            (string) $profile['device_label'],
             'Profil siswa berhasil disimpan.'
         ));
     }
@@ -262,6 +393,8 @@ class AuthController extends BaseController
         session()->destroy();
         $this->response->deleteCookie(LAB_COOKIE_ADMIN);
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+        $this->response->deleteCookie(LAB_COOKIE_WAITING);
+        $this->response->deleteCookie(LAB_COOKIE_DEVICE);
         return redirect()->to('/');
     }
 
@@ -318,6 +451,8 @@ class AuthController extends BaseController
 
         session()->destroy();
         $this->response->deleteCookie(LAB_COOKIE_PARTICIPANT);
-        return redirect()->to('/')->with('ok', $msg);
+        $this->response->deleteCookie(LAB_COOKIE_WAITING);
+        $this->response->deleteCookie(LAB_COOKIE_DEVICE);
+        return redirect()->to('/login?logged_out=1')->with('ok', $msg);
     }
 }

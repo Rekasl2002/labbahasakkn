@@ -46,6 +46,8 @@ $materialsTab = $materialsTab ?? 'list';
         <button type="submit" class="ok" style="margin-top:10px">Simpan Pengaturan</button>
       </form>
     </section>
+  <?php elseif ($tab === 'branding'): ?>
+    <?= view('admin/settings/branding_form', ['settings' => $settings]) ?>
   <?php elseif ($tab === 'password'): ?>
     <section class="card">
       <h2 style="margin:0 0 6px">Ganti Password Admin</h2>

@@ -46,6 +46,7 @@ $routes->group('errors', static function ($routes) {
 
 // Auth
 $routes->get('login', 'AuthController::chooseRole');
+$routes->get('waiting', 'AuthController::waitingSession');
 $routes->post('login/admin', 'AuthController::adminLogin');
 $routes->post('login/student', 'AuthController::studentLogin');
 $routes->post('waiting/profile', 'AuthController::saveWaitingProfile');
@@ -102,6 +103,7 @@ $routes->group('api', static function($routes) {
     $routes->post('control/admin/mic', 'Api\ControlApi::adminSetMic', ['filter' => 'adminauth']);
     $routes->post('control/admin/speaker', 'Api\ControlApi::adminSetSpeaker', ['filter' => 'adminauth']);
     $routes->post('control/admin/all', 'Api\ControlApi::adminSetAll', ['filter' => 'adminauth']);
+    $routes->post('control/admin/warn', 'Api\ControlApi::adminWarnParticipant', ['filter' => 'adminauth']);
     $routes->post('control/admin/voice-lock', 'Api\ControlApi::adminSetVoiceLock', ['filter' => 'adminauth']);
     $routes->post('control/admin/broadcast-text', 'Api\ControlApi::adminSetBroadcastText', ['filter' => 'adminauth']);
 

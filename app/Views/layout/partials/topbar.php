@@ -1,5 +1,16 @@
+<?php
+helper('settings');
+$branding = lab_app_branding();
+$appName = $branding['app_name'] ?? 'Lab Bahasa';
+$logoUrl = $branding['logo_url'] ?? base_url('favicon.ico');
+?>
 <header class="topbar">
-  <div class="brand"><a href="/" class="brand-link">Lab Bahasa</a></div>
+  <div class="brand">
+    <a href="/" class="brand-link">
+      <img src="<?= esc($logoUrl) ?>" alt="Logo <?= esc($appName) ?>" class="brand-logo">
+      <span><?= esc($appName) ?></span>
+    </a>
+  </div>
   <nav class="nav">
     <a href="/about">About</a>
     <?php if (session('admin_id')): ?>

@@ -1,17 +1,19 @@
 <?php
+helper('settings');
 $role = $role ?? '';
 $roleLabel = $role === 'admin' ? 'Admin' : 'Siswa';
 $userName = $role === 'admin'
     ? (session('admin_username') ?: 'Admin')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
+$appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
 ?>
 
 <?php if ($role === 'student'): ?>
   <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title">Lab Bahasa</div>
+        <div class="lab-sidebar-title"><?= esc($appName) ?></div>
         <div class="lab-sidebar-sub">Sidebar Kiri • <?= esc($roleLabel) ?></div>
       </div>
       <div class="lab-sidebar-user">
@@ -79,7 +81,7 @@ $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
   <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title">Lab Bahasa</div>
+        <div class="lab-sidebar-title"><?= esc($appName) ?></div>
         <div class="lab-sidebar-sub">Sidebar Kiri • <?= esc($roleLabel) ?></div>
       </div>
       <div class="lab-sidebar-user">

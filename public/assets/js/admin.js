@@ -184,6 +184,58 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  function normalizePresenceState(raw){
+    const data = raw || {};
+    const online = !!data.online;
+    const stateRaw = (data.state || (online ? 'online' : 'offline')).toString().toLowerCase();
+    const pageRaw = (data.page || 'other').toString().toLowerCase();
+    const reasonRaw = (data.reason || '').toString().toLowerCase();
+
+    return {
+      online,
+      state: stateRaw,
+      page: pageRaw,
+      reason: reasonRaw,
+      lastSeenAt: (data.last_seen_at || '').toString(),
+      updatedAt: (data.presence_updated_at || '').toString(),
+    };
+  }
+
+  function presenceReasonLabel(presence){
+    const page = (presence && presence.page ? presence.page : 'other').toString().toLowerCase();
+    const reason = (presence && presence.reason ? presence.reason : '').toString().toLowerCase();
+    const state = (presence && presence.state ? presence.state : 'offline').toString().toLowerCase();
+
+    if(state === 'online') return 'Sedang aktif di halaman sesi';
+
+    if(reason === 'outside_session_page') return 'Tidak berada di halaman sesi';
+    if(reason === 'tab_hidden') return 'Membuka tab lain / Minimize Browser';
+    if(reason === 'browser_closed' || reason === 'pagehide') return 'Browser/tab ditutup / keluar halaman';
+    if(reason === 'heartbeat_timeout') return 'Koneksi ke sesi terputus';
+
+    if(page === 'settings') return 'Sedang di halaman pengaturan';
+    if(page === 'about') return 'Sedang di halaman about';
+    if(page === 'session') return 'Tidak fokus di halaman sesi';
+    return 'Status tidak aktif';
+  }
+
+  function warningMessageForParticipant(pid){
+    const presence = normalizePresenceState(state.presence.get(pid));
+    const reason = presence.reason;
+    const page = presence.page;
+
+    if(reason === 'outside_session_page' || page === 'other'){
+      return 'Peringatan guru: kamu tidak berada di halaman sesi. Segera kembali ke halaman sesi.';
+    }
+    if(reason === 'tab_hidden'){
+      return 'Peringatan guru: kamu membuka tab lain. Segera kembali ke tab sesi.';
+    }
+    if(reason === 'browser_closed' || reason === 'pagehide' || reason === 'heartbeat_timeout'){
+      return 'Peringatan guru: koneksi sesi kamu terputus. Buka kembali halaman sesi.';
+    }
+    return 'Peringatan guru: tetap fokus di halaman sesi.';
+  }
+
   state.micVolume = readSavedVolume(STORAGE.micVolume, 1);
   state.speakerVolume = readSavedVolume(STORAGE.spkVolume, 1);
 
@@ -899,8 +951,11 @@
     const arr = Array.from(state.participants.values());
 
     grid.innerHTML = arr.map(p=>{
-      const online = state.presence.get(p.id) ? 'online' : 'offline';
+      const presence = normalizePresenceState(state.presence.get(p.id));
+      const online = presence.online ? 'online' : 'offline';
       const device = p.device_label ? esc(p.device_label) : ('PC-' + p.id);
+      const presenceDetail = presenceReasonLabel(presence);
+      const presenceStateLabel = presence.online ? 'ONLINE' : 'OFFLINE';
 
       return `
         <div class="pcard" data-pid="${p.id}">
@@ -908,7 +963,8 @@
             <div>
               <div><b>${device}</b></div>
               <div class="badge">${esc(p.student_name)} (${esc(p.class_name)})</div>
-              <div class="badge ${online}">${online.toUpperCase()} • ${esc(p.ip_address||'-')}</div>
+              <div class="badge ${online}">${presenceStateLabel} • ${esc(p.ip_address||'-')}</div>
+              <div class="muted tiny" style="margin-top:6px">${esc(presenceDetail)}</div>
             </div>
             <div class="row gap">
               <button class="btnMic ${p.mic_on? 'ok':''}" title="Mic" type="button">${p.mic_on? '🎙️':'🔇'}</button>
@@ -917,6 +973,7 @@
           </div>
           <div class="row gap wrap" style="margin-top:8px">
             <button class="btnPrivate" type="button">Private chat</button>
+            <button class="btnWarn danger" type="button">Peringatan + Suara</button>
           </div>
         </div>`;
     }).join('');
@@ -1092,7 +1149,7 @@
     for(const it of list){
       const pid = pidOf(it.id);
       if(!pid) continue;
-      state.presence.set(pid, !!it.online);
+      state.presence.set(pid, normalizePresenceState(it));
     }
     scheduleRenderParticipants();
   }
@@ -1331,6 +1388,7 @@
       if(!card) return;
 
       const pid = Number(card.dataset.pid||0);
+      if(!pid) return;
 
       if(ev.target.classList.contains('btnMic')){
         const cur = state.participants.get(pid);
@@ -1354,6 +1412,21 @@
         }
 
         appendChat('System', `Private target set to participant:${pid}`);
+      }
+
+      if(ev.target.classList.contains('btnWarn')){
+        const message = warningMessageForParticipant(pid);
+        const r = await post('/api/control/admin/warn', {
+          participant_id: pid,
+          warning_type: 'presence',
+          message,
+        });
+        if(r && r.ok){
+          const label = `${r.student_name || 'Siswa'}${r.class_name ? ' (' + r.class_name + ')' : ''}`;
+          appendChat('System', `Peringatan + suara dikirim ke ${label}.`);
+        }else{
+          appendChat('System', (r && r.error) ? r.error : 'Gagal mengirim peringatan.');
+        }
       }
     });
   }

@@ -49,10 +49,21 @@ a.btn{text-decoration:none}
   z-index:10;
 }
 .brand-link{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
   text-decoration:none;
   font-weight:800;
   letter-spacing:.2px;
   color:#163229;
+}
+.brand-logo{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  object-fit:cover;
+  border:1px solid #cfe4d9;
+  background:#fff;
 }
 .nav a{
   margin-left:12px;
@@ -309,6 +320,41 @@ body.embed-modal .container{
   background:var(--panel2);
   border-color:rgba(28,139,142,.35);
   font-weight:600;
+}
+.brandingPreview{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:0 0 10px;
+}
+.brandingPreviewCard{
+  flex:1;
+  min-width:170px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+  padding:10px;
+}
+.brandingPreviewTitle{
+  font-size:12px;
+  color:var(--muted);
+  margin:0 0 8px;
+}
+.brandingPreviewImage{
+  width:56px;
+  height:56px;
+  border-radius:10px;
+  object-fit:cover;
+  border:1px solid var(--line);
+  background:#fff;
+}
+.brandingPreviewImageSmall{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+}
+.brandingHint{
+  margin:8px 0 0;
 }
 
 .fileTitle{

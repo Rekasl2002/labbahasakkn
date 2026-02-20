@@ -215,6 +215,73 @@ class ControlApi extends BaseController
     }
 
     /**
+     * Admin: kirim peringatan + suara ke participant tertentu.
+     * POST /api/control/admin/warn
+     */
+    public function adminWarnParticipant()
+    {
+        if (strtoupper($this->request->getMethod()) !== 'POST') {
+            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+        }
+
+        if (!$this->isAdmin()) {
+            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $active = $this->getActiveSession();
+        if (!$active) {
+            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+        }
+
+        $sessionId = (int) $active['id'];
+        $pid = (int) $this->request->getPost('participant_id');
+        if ($pid <= 0) {
+            return $this->json(['ok' => false, 'error' => 'participant_id required'], 400);
+        }
+
+        $message = trim((string) $this->request->getPost('message'));
+        if ($message === '') {
+            $message = 'Peringatan guru: kembali ke halaman sesi sekarang.';
+        }
+        if (function_exists('mb_substr')) {
+            $message = mb_substr($message, 0, 255);
+        } else {
+            $message = substr($message, 0, 255);
+        }
+
+        $warningType = strtolower(trim((string) $this->request->getPost('warning_type')));
+        if (!in_array($warningType, ['focus', 'tab', 'presence'], true)) {
+            $warningType = 'presence';
+        }
+
+        $pm = new ParticipantModel();
+        $participant = $pm
+            ->select('id,student_name,class_name')
+            ->where('id', $pid)
+            ->where('session_id', $sessionId)
+            ->first();
+
+        if (!$participant) {
+            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+        }
+
+        (new EventModel())->addForParticipant($sessionId, $pid, 'admin_warning', [
+            'participant_id' => $pid,
+            'message' => $message,
+            'play_sound' => 1,
+            'warning_type' => $warningType,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return $this->json([
+            'ok' => true,
+            'participant_id' => $pid,
+            'student_name' => (string) ($participant['student_name'] ?? ''),
+            'class_name' => (string) ($participant['class_name'] ?? ''),
+        ]);
+    }
+
+    /**
      * Admin: set mic/speaker untuk semua participant di session aktif.
      * POST /api/control/admin/all
      */

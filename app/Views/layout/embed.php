@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title><?= esc($title ?? 'Lab Bahasa') ?></title>
-<link rel="stylesheet" href="<?= asset_url('assets/css/app.css') ?>">
+  <?= view('layout/partials/head_css', ['title' => $title ?? null]) ?>
 </head>
 <body class="embed-modal">
   <main class="container">
@@ -83,5 +80,15 @@
       });
     })();
   </script>
+  <?php if (session('participant_id') && session('session_id')): ?>
+    <script>
+      window.__LAB_STUDENT_PRESENCE__ = {
+        enabled: true,
+        participant_id: <?= (int) session('participant_id') ?>,
+        session_id: <?= (int) session('session_id') ?>,
+      };
+    </script>
+    <script src="/assets/js/student-presence.js"></script>
+  <?php endif; ?>
 </body>
 </html>
