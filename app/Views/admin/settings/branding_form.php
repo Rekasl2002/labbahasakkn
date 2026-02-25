@@ -22,7 +22,7 @@ if ($appNameValue === '') {
       <img src="<?= esc($branding['logo_url']) ?>" alt="Logo aplikasi saat ini" class="brandingPreviewImage">
     </div>
     <div class="brandingPreviewCard">
-      <div class="brandingPreviewTitle">Icon Tab Browser (Favicon) Saat Ini</div>
+      <div class="brandingPreviewTitle">Ikon Tab Browser (Favicon) Saat Ini</div>
       <img src="<?= esc($branding['favicon_url']) ?>" alt="Favicon saat ini" class="brandingPreviewImage brandingPreviewImageSmall">
     </div>
   </div>
@@ -37,14 +37,14 @@ if ($appNameValue === '') {
     <label>Nama aplikasi</label>
     <input name="app_name" maxlength="80" required value="<?= esc($appNameValue) ?>">
 
-    <label>Logo aplikasi (opsional, jika ingin diganti)</label>
+    <label>Logo aplikasi</label>
     <input
       type="file"
       name="app_logo"
       accept=".png,.jpg,.jpeg,.webp,.svg,.ico,image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
     >
 
-    <label>Ubah Icon untuk Tab Browser (Favicon)</label>
+    <label>Ubah Ikon untuk Tab Browser (Favicon)</label>
     <input
       type="file"
       name="app_favicon"
