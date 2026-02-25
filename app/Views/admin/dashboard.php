@@ -159,10 +159,6 @@ $sessionHistory = $sessionHistory ?? [];
           <span class="badge">VOICE</span>
           <span id="callStatus" class="muted" aria-live="polite">Voice room: idle</span>
         </div>
-
-        <div class="row gap wrap" style="align-items:center">
-          <button id="btnHangupCall" class="danger" type="button" disabled title="Putuskan semua koneksi voice">☎ Putuskan Semua</button>
-        </div>
       </div>
 
       <audio id="adminRemoteAudio" class="audioEl" playsinline></audio>

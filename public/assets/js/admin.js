@@ -79,6 +79,9 @@
   };
 
   const MAX_PENDING_CANDIDATES = 160; // opsional: batasi memori
+  const DISCONNECTED_RECOVER_MS = 1400;
+  const DISCONNECTED_FORCE_CLOSE_MS = 5200;
+  const ADMIN_RECOVERY_DELAY_MS = 320;
   const IS_SECURE_CONTEXT =
     (location.protocol === 'https:' ||
      location.hostname === 'localhost' ||
@@ -94,6 +97,7 @@
   };
 
   let _renderScheduled = false;
+  let adminRecoveryTimer = null;
 
   function esc(s){ return (s??'').toString().replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
   function clamp01(v){
@@ -107,6 +111,49 @@
 
   function setCallStatus(text){
     if(callStatusEl) callStatusEl.textContent = text || '';
+  }
+
+  function clearPeerRecoveryTimers(peer){
+    if(!peer) return;
+    if(peer.reconnectTimer){
+      clearTimeout(peer.reconnectTimer);
+      peer.reconnectTimer = null;
+    }
+    if(peer.forceCloseTimer){
+      clearTimeout(peer.forceCloseTimer);
+      peer.forceCloseTimer = null;
+    }
+  }
+
+  function scheduleAdminVoiceRecovery(delayMs){
+    const d = Number(delayMs || ADMIN_RECOVERY_DELAY_MS);
+    if(adminRecoveryTimer) clearTimeout(adminRecoveryTimer);
+    adminRecoveryTimer = setTimeout(()=>{ recoverAdminAudioAndVoice().catch(()=>{}); }, d);
+  }
+
+  async function recoverAdminAudioAndVoice(){
+    if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
+      return;
+    }
+
+    try{
+      await refreshDevices();
+    }catch(e){}
+
+    if(rtc.micOn){
+      try{
+        await ensureLocalStream();
+        attachLocalTrackToAll();
+        renegotiateAllPeers(true);
+        applyAdminMic();
+      }catch(e){}
+    }else{
+      renegotiateAllPeers(true);
+    }
+
+    if(state.adminSpeakerOn){
+      unlockAdminAudio(true).catch(()=>{});
+    }
   }
 
   function setAudioIndicator(kind, text){
@@ -599,7 +646,15 @@
 
   function createPeer(pid, callId){
     const pc = new RTCPeerConnection(getRtcConfig());
-    const peer = { pid, callId, pc, pendingCandidates: [], audioEl: null };
+    const peer = {
+      pid,
+      callId,
+      pc,
+      pendingCandidates: [],
+      audioEl: null,
+      reconnectTimer: null,
+      forceCloseTimer: null,
+    };
     rtc.peers.set(pid, peer);
 
     pc.onicecandidate = (ev)=>{
@@ -632,9 +687,36 @@
 
     pc.onconnectionstatechange = ()=>{
       if(!pc.connectionState) return;
+      const connState = pc.connectionState;
+
+      if(connState === 'connected'){
+        clearPeerRecoveryTimers(peer);
+      }
+
       updateVoiceStatus();
-      if(pc.connectionState === 'failed' || pc.connectionState === 'closed'){
+      if(connState === 'failed' || connState === 'closed'){
+        clearPeerRecoveryTimers(peer);
         closePeer(pid, false);
+        return;
+      }
+
+      if(connState === 'disconnected'){
+        clearPeerRecoveryTimers(peer);
+        peer.reconnectTimer = setTimeout(()=>{
+          const current = rtc.peers.get(pid);
+          if(!current || current !== peer || !current.pc) return;
+          if(current.pc.connectionState !== 'disconnected') return;
+
+          renegotiatePeer(current, true);
+          current.forceCloseTimer = setTimeout(()=>{
+            const latest = rtc.peers.get(pid);
+            if(!latest || latest !== current || !latest.pc) return;
+            const latestState = latest.pc.connectionState;
+            if(latestState === 'disconnected' || latestState === 'failed'){
+              closePeer(pid, false);
+            }
+          }, DISCONNECTED_FORCE_CLOSE_MS);
+        }, DISCONNECTED_RECOVER_MS);
       }
     };
 
@@ -682,6 +764,7 @@
   function closePeer(pid, sendSignal){
     const peer = rtc.peers.get(pid);
     if(!peer) return;
+    clearPeerRecoveryTimers(peer);
 
     if(sendSignal && peer.callId){
       post('/api/rtc/signal', {
@@ -924,19 +1007,24 @@
     });
   }
 
-  async function renegotiatePeer(peer){
+  async function renegotiatePeer(peer, forceIceRestart){
     if(!peer || !peer.pc || !peer.callId) return;
-    if(peer.pc.signalingState && peer.pc.signalingState !== 'stable') return;
+    const pc = peer.pc;
+    if(pc.connectionState === 'closed' || pc.connectionState === 'failed') return;
+    if(pc.signalingState && pc.signalingState !== 'stable') return;
     try{
-      const offer = await peer.pc.createOffer({ offerToReceiveAudio: true });
-      await peer.pc.setLocalDescription(offer);
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        iceRestart: !!forceIceRestart,
+      });
+      await pc.setLocalDescription(offer);
       await sendRtc(peer.pid, 'offer', { type: offer.type, sdp: offer.sdp }, peer.callId);
     }catch(e){}
   }
 
-  function renegotiateAllPeers(){
+  function renegotiateAllPeers(forceIceRestart){
     for(const peer of rtc.peers.values()){
-      renegotiatePeer(peer);
+      renegotiatePeer(peer, forceIceRestart);
     }
   }
 
@@ -1785,5 +1873,11 @@
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
   }
+  window.addEventListener('pageshow', ()=> scheduleAdminVoiceRecovery(140));
+  window.addEventListener('online', ()=> scheduleAdminVoiceRecovery(120));
+  window.addEventListener('focus', ()=> scheduleAdminVoiceRecovery(120));
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) scheduleAdminVoiceRecovery(120);
+  });
 
 })();

@@ -81,11 +81,15 @@
   };
 
   const ALWAYS_JOIN_VOICE = true;
+  const DISCONNECTED_RECOVER_MS = 1400;
+  const DISCONNECTED_FORCE_RECREATE_MS = 5200;
+  const RECOVERY_DELAY_MS = 320;
 
   let voiceCheckTimer = null;
   let sessionExitQueued = false;
   let poller = null;
   let warningAudioEl = null;
+  let recoveryTimer = null;
 
   function mkCallId(){
     if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -100,6 +104,41 @@
     const d = Number(delayMs || 250);
     if(voiceCheckTimer) clearTimeout(voiceCheckTimer);
     voiceCheckTimer = setTimeout(()=>{ ensureMeshConnections().catch(()=>{}); }, d);
+  }
+
+  function clearPeerRecoveryTimers(peer){
+    if(!peer) return;
+    if(peer.reconnectTimer){
+      clearTimeout(peer.reconnectTimer);
+      peer.reconnectTimer = null;
+    }
+    if(peer.forceRecreateTimer){
+      clearTimeout(peer.forceRecreateTimer);
+      peer.forceRecreateTimer = null;
+    }
+  }
+
+  function scheduleAudioRecovery(delayMs){
+    const d = Number(delayMs || RECOVERY_DELAY_MS);
+    if(recoveryTimer) clearTimeout(recoveryTimer);
+    recoveryTimer = setTimeout(()=>{ recoverAudioAndVoice().catch(()=>{}); }, d);
+  }
+
+  async function recoverAudioAndVoice(){
+    if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA) return;
+    try{
+      await refreshDevices();
+    }catch(e){}
+
+    if(state.mySpeakerOn){
+      unlockAudio(true).catch(()=>{});
+    }
+    if(state.myMicOn){
+      autoInitAudio(true).catch(()=>{});
+    }
+    if(wantVoice()){
+      scheduleVoiceCheck(180);
+    }
   }
 
   function peerKeyAdmin(){ return 'admin'; }
@@ -605,12 +644,17 @@
     }
   }
 
-  async function renegotiatePeer(peer){
+  async function renegotiatePeer(peer, forceIceRestart){
     if(!peer || !peer.pc || !peer.callId) return;
-    if(peer.pc.signalingState && peer.pc.signalingState !== 'stable') return;
+    const pc = peer.pc;
+    if(pc.connectionState === 'closed' || pc.connectionState === 'failed') return;
+    if(pc.signalingState && pc.signalingState !== 'stable') return;
     try{
-      const offer = await peer.pc.createOffer({ offerToReceiveAudio: true });
-      await peer.pc.setLocalDescription(offer);
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        iceRestart: !!forceIceRestart,
+      });
+      await pc.setLocalDescription(offer);
       if(peer.kind === 'admin'){
         await sendRtcAdmin('offer', { type: offer.type, sdp: offer.sdp }, peer.callId);
       }else{
@@ -628,7 +672,17 @@
   function createPeer(kind, pid, callId){
     const pc = new RTCPeerConnection(getRtcConfig());
     const key = (kind === 'admin') ? peerKeyAdmin() : peerKeyParticipant(pid);
-    const peer = { key, kind, pid, callId, pc, pendingCandidates: [], audioEl: null };
+    const peer = {
+      key,
+      kind,
+      pid,
+      callId,
+      pc,
+      pendingCandidates: [],
+      audioEl: null,
+      reconnectTimer: null,
+      forceRecreateTimer: null,
+    };
     rtc.peers.set(key, peer);
 
     pc.onicecandidate = (ev)=>{
@@ -666,11 +720,42 @@
 
     pc.onconnectionstatechange = ()=>{
       if(!pc.connectionState) return;
-      if(pc.connectionState === 'failed' || pc.connectionState === 'closed'){
+      const connState = pc.connectionState;
+
+      if(connState === 'connected'){
+        clearPeerRecoveryTimers(peer);
+        return;
+      }
+
+      if(connState === 'failed' || connState === 'closed'){
+        clearPeerRecoveryTimers(peer);
         closePeer(key, false);
         if(wantVoice()) scheduleVoiceCheck(800);
-      } else if(pc.connectionState === 'disconnected'){
-        if(wantVoice()) scheduleVoiceCheck(1200);
+        return;
+      }
+
+      if(connState === 'disconnected'){
+        clearPeerRecoveryTimers(peer);
+        if(!wantVoice()) return;
+
+        peer.reconnectTimer = setTimeout(()=>{
+          const current = rtc.peers.get(key);
+          if(!current || current !== peer || !current.pc) return;
+          if(current.pc.connectionState !== 'disconnected') return;
+
+          renegotiatePeer(current, true);
+          scheduleVoiceCheck(280);
+
+          current.forceRecreateTimer = setTimeout(()=>{
+            const latest = rtc.peers.get(key);
+            if(!latest || latest !== current || !latest.pc) return;
+            const latestState = latest.pc.connectionState;
+            if(latestState === 'disconnected' || latestState === 'failed'){
+              closePeer(key, false);
+              if(wantVoice()) scheduleVoiceCheck(220);
+            }
+          }, DISCONNECTED_FORCE_RECREATE_MS);
+        }, DISCONNECTED_RECOVER_MS);
       }
     };
 
@@ -702,6 +787,7 @@
   function closePeer(key, sendSignal){
     const peer = rtc.peers.get(key);
     if(!peer) return;
+    clearPeerRecoveryTimers(peer);
 
     if(sendSignal && peer.callId){
       if(peer.kind === 'admin'){
@@ -758,7 +844,17 @@
     }
 
     // Admin connection (selalu coba jika voice aktif)
-    if(!rtc.peers.get(peerKeyAdmin())){
+    const adminKey = peerKeyAdmin();
+    const adminPeer = rtc.peers.get(adminKey);
+    if(adminPeer){
+      const st = adminPeer.pc ? adminPeer.pc.connectionState : '';
+      if(st === 'failed' || st === 'closed'){
+        closePeer(adminKey, false);
+      }else if(st === 'disconnected'){
+        renegotiatePeer(adminPeer, true);
+      }
+    }
+    if(!rtc.peers.get(adminKey)){
       try{ await startOfferToAdmin(); }catch(e){}
     }
 
@@ -777,6 +873,15 @@
       if(!isOfferer(p.id)) continue;
 
       const key = peerKeyParticipant(p.id);
+      const existingPeer = rtc.peers.get(key);
+      if(existingPeer){
+        const st = existingPeer.pc ? existingPeer.pc.connectionState : '';
+        if(st === 'failed' || st === 'closed'){
+          closePeer(key, false);
+        }else if(st === 'disconnected'){
+          renegotiatePeer(existingPeer, true);
+        }
+      }
       if(!rtc.peers.get(key)){
         try{ await startOfferToParticipant(p.id); }catch(e){}
       }
@@ -1776,5 +1881,11 @@
   if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices);
   }
+  window.addEventListener('pageshow', ()=> scheduleAudioRecovery(140));
+  window.addEventListener('online', ()=> scheduleAudioRecovery(120));
+  window.addEventListener('focus', ()=> scheduleAudioRecovery(120));
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) scheduleAudioRecovery(120);
+  });
 
 })();
