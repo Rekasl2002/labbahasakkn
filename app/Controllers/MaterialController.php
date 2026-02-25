@@ -186,33 +186,9 @@ class MaterialController extends BaseController
 
         $stateModel = new SessionStateModel();
         $stateModel->setCurrentMaterial($session['id'], $id);
-
-        $material = (new MaterialModel())->find($id);
-        $files = (new MaterialFileModel())
-            ->orderedForMaterial($id)
-            ->findAll();
-        $textItems = [];
-        if ($material && ($material['type'] ?? '') === 'folder') {
-            $raw = (string) ($material['text_content'] ?? '');
-            if ($raw !== '') {
-                $lines = preg_split("/\r\n|\n|\r/", $raw);
-                if (is_array($lines)) {
-                    foreach ($lines as $line) {
-                        $line = trim((string) $line);
-                        if ($line !== '') $textItems[] = $line;
-                    }
-                }
-            }
-        }
-
-        $fileId = null;
-        $textIndex = null;
-        if (!empty($textItems)) {
-            $textIndex = 0;
-        } elseif (!empty($files)) {
-            $fileId = (int) $files[0]['id'];
-        }
-        $stateModel->setCurrentMaterialItem($session['id'], $fileId, $textIndex);
+        // Saat materi dibroadcast, jangan langsung menampilkan item ke siswa.
+        // Guru harus menekan tombol "Tampilkan" dulu dari panel materi.
+        $stateModel->setCurrentMaterialItem($session['id'], null, null);
 
         (new EventModel())->addForAll($session['id'], 'material_changed', [
             'material_id' => $id,

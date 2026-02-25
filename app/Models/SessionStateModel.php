@@ -15,6 +15,7 @@ class SessionStateModel extends Model
         'current_material_file_id',
         'current_material_text_index',
         'broadcast_text',
+        'broadcast_enabled',
         'allow_student_mic',
         'allow_student_speaker',
         'updated_at'
@@ -91,6 +92,31 @@ class SessionStateModel extends Model
         }
     }
 
+    /**
+     * Pastikan kolom status teks guru ada (aktif/tidak aktif).
+     * Aman dipanggil berkali-kali.
+     */
+    private function ensureBroadcastColumns(): void
+    {
+        $db = db_connect();
+        $table = $this->table;
+
+        $hasEnabled = $db->fieldExists('broadcast_enabled', $table);
+        if (!$hasEnabled) {
+            try {
+                $db->query("ALTER TABLE `{$table}` ADD `broadcast_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `broadcast_text`");
+                $db->query("UPDATE `{$table}` SET `broadcast_enabled` = CASE WHEN TRIM(COALESCE(`broadcast_text`, '')) <> '' THEN 1 ELSE 0 END");
+            } catch (\Throwable $e) {
+                // biarkan caller yang memutuskan
+            }
+            $hasEnabled = $db->fieldExists('broadcast_enabled', $table);
+        }
+
+        if (!$hasEnabled) {
+            throw new \RuntimeException('Kolom status teks guru belum tersedia. Jalankan migrasi terbaru.');
+        }
+    }
+
     public function ensureRow(int $sessionId): void
     {
         $row = $this->find($sessionId);
@@ -115,6 +141,9 @@ class SessionStateModel extends Model
             }
             if ($db->fieldExists('allow_student_speaker', $this->table)) {
                 $data['allow_student_speaker'] = 1;
+            }
+            if ($db->fieldExists('broadcast_enabled', $this->table)) {
+                $data['broadcast_enabled'] = !empty($data['broadcast_text']) ? 1 : 0;
             }
 
             $this->insert($data);
@@ -143,9 +172,22 @@ class SessionStateModel extends Model
 
     public function setBroadcastText(int $sessionId, string $text): void
     {
+        $this->ensureBroadcastColumns();
+        $this->ensureRow($sessionId);
+        $clean = trim($text);
+        $this->update($sessionId, [
+            'broadcast_text' => $clean !== '' ? $clean : null,
+            'broadcast_enabled' => $clean !== '' ? 1 : 0,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function setBroadcastEnabled(int $sessionId, bool $enabled): void
+    {
+        $this->ensureBroadcastColumns();
         $this->ensureRow($sessionId);
         $this->update($sessionId, [
-            'broadcast_text' => $text ?: null,
+            'broadcast_enabled' => $enabled ? 1 : 0,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
     }

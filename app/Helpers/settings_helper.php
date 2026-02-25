@@ -14,6 +14,7 @@ if (!function_exists('lab_default_settings')) {
             'app_name' => 'Lab Bahasa',
             'logo_path' => '/favicon.ico',
             'favicon_path' => '/favicon.ico',
+            'warning_sound_path' => '',
             'ip_range_start' => '192.168.100.101',
             'ip_range_end' => '192.168.100.140',
             'label_format' => 'Komputer {n}',

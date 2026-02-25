@@ -265,10 +265,16 @@ class ControlApi extends BaseController
             return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
         }
 
+        helper('settings');
+        $settings = lab_load_settings();
+        $warningSoundPath = trim((string) ($settings['warning_sound_path'] ?? ''));
+        $warningSoundUrl = $warningSoundPath !== '' ? lab_asset_public_url($warningSoundPath) : '';
+
         (new EventModel())->addForParticipant($sessionId, $pid, 'admin_warning', [
             'participant_id' => $pid,
             'message' => $message,
             'play_sound' => 1,
+            'warning_sound_url' => $warningSoundUrl,
             'warning_type' => $warningType,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -369,14 +375,53 @@ class ControlApi extends BaseController
         }
 
         $sessionId = (int) $active['id'];
+        $stateModel = new SessionStateModel();
+        $state = $stateModel->where('session_id', $sessionId)->first();
 
-        (new SessionStateModel())->setBroadcastText($sessionId, $text);
+        $materialTextCleared = false;
+        $materialChangePayload = null;
+        if ($text !== '' && is_array($state)) {
+            $currentTextIndex = $state['current_material_text_index'] ?? null;
+            $hasSelectedText = ($currentTextIndex !== null && $currentTextIndex !== '');
 
-        (new EventModel())->addForAll($sessionId, 'broadcast_text_changed', [
+            if ($hasSelectedText) {
+                $currentFileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
+                $currentMaterialId = isset($state['current_material_id']) ? (int) $state['current_material_id'] : 0;
+
+                $stateModel->setCurrentMaterialItem(
+                    $sessionId,
+                    $currentFileId > 0 ? $currentFileId : null,
+                    null
+                );
+
+                $materialTextCleared = true;
+                $materialChangePayload = [
+                    'material_id' => $currentMaterialId > 0 ? $currentMaterialId : null,
+                    'item_type' => 'clear_text',
+                    'file_id' => $currentFileId > 0 ? $currentFileId : null,
+                    'text_index' => null,
+                ];
+            }
+        }
+
+        $stateModel->setBroadcastText($sessionId, $text);
+
+        $eventModel = new EventModel();
+        $eventModel->addForAll($sessionId, 'broadcast_text_changed', [
             'broadcast_text' => $text,
+            'broadcast_enabled' => $text !== '' ? 1 : 0,
         ]);
 
-        return $this->json(['ok' => true, 'broadcast_text' => $text]);
+        if ($materialChangePayload !== null) {
+            $eventModel->addForAll($sessionId, 'material_changed', $materialChangePayload);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'broadcast_text' => $text,
+            'broadcast_enabled' => $text !== '' ? 1 : 0,
+            'material_text_cleared' => $materialTextCleared ? 1 : 0,
+        ]);
     }
 
     /**

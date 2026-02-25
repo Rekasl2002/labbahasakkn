@@ -13,6 +13,11 @@ class MaterialApi extends BaseController
     private function parseTextItems(array $material): array
     {
         $type = (string) ($material['type'] ?? '');
+        if ($type === 'text') {
+            $raw = (string) ($material['text_content'] ?? '');
+            if (trim($raw) === '') return [];
+            return [$raw];
+        }
         if ($type !== 'folder') return [];
 
         $raw = (string) ($material['text_content'] ?? '');
@@ -47,43 +52,31 @@ class MaterialApi extends BaseController
         $textItems = $this->parseTextItems($material);
 
         $selected = null;
+        $selectedFile = null;
+        $selectedText = null;
         $fileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
         $textIndexRaw = $state['current_material_text_index'] ?? null;
 
         if ($fileId > 0) {
             foreach ($files as $f) {
                 if ((int) $f['id'] === $fileId) {
-                    $selected = ['type' => 'file', 'file' => $f];
+                    $selectedFile = $f;
                     break;
                 }
             }
         }
 
-        if (!$selected && $textIndexRaw !== null && $textIndexRaw !== '') {
+        if ($textIndexRaw !== null && $textIndexRaw !== '') {
             $idx = (int) $textIndexRaw;
             if (isset($textItems[$idx])) {
-                $selected = ['type' => 'text', 'index' => $idx, 'text' => $textItems[$idx]];
+                $selectedText = ['index' => $idx, 'text' => $textItems[$idx]];
             }
         }
 
-        if (!$selected) {
-            $type = (string) ($material['type'] ?? '');
-            if ($type === 'text' && !empty($material['text_content'])) {
-                $selected = [
-                    'type' => 'text',
-                    'index' => null,
-                    'text' => (string) $material['text_content'],
-                    'mode' => 'full',
-                ];
-            } elseif ($type === 'file' && !empty($files)) {
-                $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
-            } elseif ($type === 'folder') {
-                if (!empty($textItems)) {
-                    $selected = ['type' => 'text', 'index' => 0, 'text' => $textItems[0], 'mode' => 'default'];
-                } elseif (!empty($files)) {
-                    $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
-                }
-            }
+        if ($selectedFile) {
+            $selected = ['type' => 'file', 'file' => $selectedFile];
+        } elseif ($selectedText) {
+            $selected = ['type' => 'text', 'index' => $selectedText['index'], 'text' => $selectedText['text']];
         }
 
         return [
@@ -91,6 +84,8 @@ class MaterialApi extends BaseController
             'files' => $files,
             'text_items' => $textItems,
             'selected' => $selected,
+            'selected_file' => $selectedFile,
+            'selected_text' => $selectedText,
         ];
     }
 
@@ -145,11 +140,20 @@ class MaterialApi extends BaseController
         $material = (new MaterialModel())->find((int) $state['current_material_id']);
         if (!$material) return $this->json(['ok' => false, 'message' => 'Materi tidak ditemukan.'], 404);
 
+        $eventFileId = null;
+        $eventTextIndex = null;
+        $broadcastDisabled = false;
+        $broadcastTextValue = '';
+
         if ($itemType === 'file') {
             if ($fileId <= 0) return $this->json(['ok' => false, 'message' => 'File tidak valid.'], 400);
             $file = (new MaterialFileModel())->where('material_id', $material['id'])->where('id', $fileId)->first();
             if (!$file) return $this->json(['ok' => false, 'message' => 'File tidak ditemukan.'], 404);
-            $stateModel->setCurrentMaterialItem($sessionId, $fileId, null);
+            $keepTextIndex = ($state['current_material_text_index'] ?? null);
+            $keepTextIndex = ($keepTextIndex !== null && $keepTextIndex !== '') ? (int) $keepTextIndex : null;
+            $stateModel->setCurrentMaterialItem($sessionId, $fileId, $keepTextIndex);
+            $eventFileId = $fileId;
+            $eventTextIndex = $keepTextIndex;
         } elseif ($itemType === 'text') {
             if ($textIndexRaw === null || $textIndexRaw === '') {
                 return $this->json(['ok' => false, 'message' => 'Teks tidak valid.'], 400);
@@ -159,17 +163,72 @@ class MaterialApi extends BaseController
             if (!isset($textItems[$textIndex])) {
                 return $this->json(['ok' => false, 'message' => 'Teks tidak ditemukan.'], 404);
             }
-            $stateModel->setCurrentMaterialItem($sessionId, null, $textIndex);
+            $keepFileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
+            $stateModel->setCurrentMaterialItem($sessionId, $keepFileId > 0 ? $keepFileId : null, $textIndex);
+            $eventFileId = $keepFileId > 0 ? $keepFileId : null;
+            $eventTextIndex = $textIndex;
+
+            $currentBroadcast = trim((string) ($state['broadcast_text'] ?? ''));
+            $broadcastEnabledRaw = $state['broadcast_enabled'] ?? null;
+            $isBroadcastEnabled = $broadcastEnabledRaw === null
+                ? ($currentBroadcast !== '')
+                : ((int) $broadcastEnabledRaw === 1);
+
+            if ($isBroadcastEnabled) {
+                $stateModel->setBroadcastEnabled($sessionId, false);
+                $broadcastDisabled = true;
+                $broadcastTextValue = $currentBroadcast;
+            }
+        } elseif ($itemType === 'clear' || $itemType === 'clear_text' || $itemType === 'clear_file') {
+            $currentFileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
+            $currentTextIndex = $state['current_material_text_index'] ?? null;
+
+            $shouldClear = false;
+            if ($itemType === 'clear') {
+                $shouldClear = true;
+            } elseif ($itemType === 'clear_text') {
+                $shouldClear = ($currentTextIndex !== null && $currentTextIndex !== '');
+            } elseif ($itemType === 'clear_file') {
+                $shouldClear = $currentFileId > 0;
+            }
+
+            if (!$shouldClear) {
+                return $this->json(['ok' => true, 'changed' => false]);
+            }
+
+            if ($itemType === 'clear_text') {
+                $nextFileId = $currentFileId > 0 ? $currentFileId : null;
+                $stateModel->setCurrentMaterialItem($sessionId, $nextFileId, null);
+                $eventFileId = $nextFileId;
+                $eventTextIndex = null;
+            } elseif ($itemType === 'clear_file') {
+                $nextTextIndex = ($currentTextIndex !== null && $currentTextIndex !== '') ? (int) $currentTextIndex : null;
+                $stateModel->setCurrentMaterialItem($sessionId, null, $nextTextIndex);
+                $eventFileId = null;
+                $eventTextIndex = $nextTextIndex;
+            } else {
+                $stateModel->setCurrentMaterialItem($sessionId, null, null);
+                $eventFileId = null;
+                $eventTextIndex = null;
+            }
         } else {
             return $this->json(['ok' => false, 'message' => 'Jenis item tidak valid.'], 400);
         }
 
-        (new EventModel())->addForAll($sessionId, 'material_changed', [
+        $eventModel = new EventModel();
+        $eventModel->addForAll($sessionId, 'material_changed', [
             'material_id' => (int) $material['id'],
             'item_type' => $itemType,
-            'file_id' => $fileId,
-            'text_index' => $itemType === 'text' ? (int) $textIndexRaw : null,
+            'file_id' => $eventFileId,
+            'text_index' => $eventTextIndex,
         ]);
+
+        if ($broadcastDisabled) {
+            $eventModel->addForAll($sessionId, 'broadcast_text_changed', [
+                'broadcast_text' => $broadcastTextValue,
+                'broadcast_enabled' => 0,
+            ]);
+        }
 
         return $this->json(['ok' => true]);
     }

@@ -141,7 +141,7 @@ class AdminController extends BaseController
 
         $tab = (string) $this->request->getGet('tab');
         $tab = $tab !== '' ? $tab : 'auto-detect';
-        $allowedTabs = ['branding', 'auto-detect', 'password', 'materials'];
+        $allowedTabs = ['branding', 'warning-sound', 'auto-detect', 'password', 'materials'];
         $embed = (string) $this->request->getGet('embed') === '1';
 
         $editId = (int) $this->request->getGet('edit_id');
@@ -160,6 +160,9 @@ class AdminController extends BaseController
         if ($tab === 'materials' && $materialsTab === '') {
             $materialsTab = 'list';
         }
+
+        $warningSoundPath = trim((string) ($settings['warning_sound_path'] ?? ''));
+        $warningSoundUrl = $warningSoundPath !== '' ? lab_asset_public_url($warningSoundPath) : '';
 
         $material = null;
         $files = [];
@@ -201,6 +204,8 @@ class AdminController extends BaseController
             'tab' => $tab,
             'materialsTab' => $materialsTab,
             'embed' => $embed,
+            'warningSoundPath' => $warningSoundPath,
+            'warningSoundUrl' => $warningSoundUrl,
         ]);
     }
 
@@ -211,6 +216,10 @@ class AdminController extends BaseController
         $group = trim((string) $this->request->getPost('setting_group'));
         if ($group === 'branding') {
             return $this->saveBrandingSettings();
+        }
+
+        if ($group === 'warning-sound') {
+            return $this->saveWarningSoundSettings();
         }
 
         return $this->saveAutoDetectSettings();
@@ -357,6 +366,63 @@ class AdminController extends BaseController
         return redirect()->to($target)->with('ok', 'Branding aplikasi disimpan.');
     }
 
+    private function saveWarningSoundSettings()
+    {
+        helper('settings');
+
+        $current = lab_load_settings();
+        $oldPath = trim((string) ($current['warning_sound_path'] ?? ''));
+        $newPath = $oldPath;
+        $uploadedPath = '';
+        $errors = [];
+
+        $removeRequested = (string) $this->request->getPost('warning_sound_remove') === '1';
+        if ($removeRequested) {
+            $newPath = '';
+        }
+
+        $soundFile = $this->request->getFile('warning_sound_file');
+        if ($soundFile && (int) $soundFile->getError() !== UPLOAD_ERR_NO_FILE) {
+            $upload = $this->storeWarningSoundUpload($soundFile);
+            if (!empty($upload['error'])) {
+                $errors[] = (string) $upload['error'];
+            } elseif (!empty($upload['path'])) {
+                $newPath = (string) $upload['path'];
+                $uploadedPath = $newPath;
+            }
+        }
+
+        if (!empty($errors)) {
+            if ($uploadedPath !== '') {
+                $this->deleteManagedWarningSoundFile($uploadedPath);
+            }
+            return redirect()->back()->with('error', implode(' ', $errors));
+        }
+
+        $ok = lab_save_settings(array_merge($current, [
+            'warning_sound_path' => $newPath,
+        ]));
+
+        if (!$ok) {
+            if ($uploadedPath !== '') {
+                $this->deleteManagedWarningSoundFile($uploadedPath);
+            }
+            return redirect()->back()->with('error', 'Gagal menyimpan suara peringatan.');
+        }
+
+        if ($oldPath !== '' && $oldPath !== $newPath && ($removeRequested || $uploadedPath !== '')) {
+            $this->deleteManagedWarningSoundFile($oldPath);
+        }
+
+        $embed = $this->isEmbedSettingsRequest();
+        $target = '/admin/settings?tab=warning-sound' . ($embed ? '&embed=1' : '');
+        if ($newPath === '') {
+            return redirect()->to($target)->with('ok', 'Suara peringatan dikembalikan ke default.');
+        }
+
+        return redirect()->to($target)->with('ok', 'Suara peringatan berhasil disimpan.');
+    }
+
     private function isEmbedSettingsRequest(): bool
     {
         return (string) $this->request->getPost('embed') === '1'
@@ -423,10 +489,85 @@ class AdminController extends BaseController
         return ['path' => '/uploads/branding/' . $safeName];
     }
 
+    private function storeWarningSoundUpload($file): array
+    {
+        if (!$file || !$file->isValid()) {
+            return ['error' => 'File suara tidak valid.'];
+        }
+
+        $maxBytes = 8 * 1024 * 1024;
+        if ((int) $file->getSize() > $maxBytes) {
+            return ['error' => 'Ukuran file suara maksimal 8MB.'];
+        }
+
+        $allowedMimes = [
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+            'audio/webm',
+            'audio/mp4',
+            'audio/aac',
+            'audio/x-m4a',
+        ];
+        $allowedExt = ['mp3', 'wav', 'ogg', 'webm', 'm4a', 'mp4', 'aac'];
+
+        $mime = strtolower((string) $file->getClientMimeType());
+        if ($mime !== '' && !in_array($mime, $allowedMimes, true)) {
+            return ['error' => 'Format suara tidak didukung.'];
+        }
+
+        $ext = strtolower((string) $file->getClientExtension());
+        if ($ext === '') {
+            $ext = strtolower((string) $file->guessExtension());
+        }
+        if ($ext === '') {
+            $ext = 'mp3';
+        }
+        if (!in_array($ext, $allowedExt, true)) {
+            return ['error' => 'Ekstensi file suara tidak didukung.'];
+        }
+
+        $dir = ROOTPATH . 'public/uploads/warnings';
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return ['error' => 'Folder upload suara peringatan tidak dapat dibuat.'];
+        }
+
+        try {
+            $token = bin2hex(random_bytes(6));
+        } catch (\Throwable $e) {
+            $token = preg_replace('/[^a-zA-Z0-9]/', '', uniqid('', true));
+        }
+
+        $safeName = 'warning-' . date('YmdHis') . '-' . $token . '.' . $ext;
+
+        try {
+            $file->move($dir, $safeName, true);
+        } catch (\Throwable $e) {
+            return ['error' => 'Upload suara peringatan gagal diproses.'];
+        }
+
+        return ['path' => '/uploads/warnings/' . $safeName];
+    }
+
     private function deleteManagedBrandingFile(string $path): void
     {
         $path = trim($path);
         if ($path === '' || !str_starts_with($path, '/uploads/branding/')) {
+            return;
+        }
+
+        $filePath = ROOTPATH . 'public' . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (is_file($filePath)) {
+            @unlink($filePath);
+        }
+    }
+
+    private function deleteManagedWarningSoundFile(string $path): void
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/uploads/warnings/')) {
             return;
         }
 

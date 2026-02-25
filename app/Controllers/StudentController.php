@@ -99,6 +99,11 @@ class StudentController extends BaseController
     private function parseTextItems(array $material): array
     {
         $type = (string) ($material['type'] ?? '');
+        if ($type === 'text') {
+            $raw = (string) ($material['text_content'] ?? '');
+            if (trim($raw) === '') return [];
+            return [$raw];
+        }
         if ($type !== 'folder') return [];
 
         $raw = (string) ($material['text_content'] ?? '');
@@ -133,43 +138,31 @@ class StudentController extends BaseController
         $textItems = $this->parseTextItems($material);
 
         $selected = null;
+        $selectedFile = null;
+        $selectedText = null;
         $fileId = isset($state['current_material_file_id']) ? (int) $state['current_material_file_id'] : 0;
         $textIndexRaw = $state['current_material_text_index'] ?? null;
 
         if ($fileId > 0) {
             foreach ($files as $f) {
                 if ((int) $f['id'] === $fileId) {
-                    $selected = ['type' => 'file', 'file' => $f];
+                    $selectedFile = $f;
                     break;
                 }
             }
         }
 
-        if (!$selected && $textIndexRaw !== null && $textIndexRaw !== '') {
+        if ($textIndexRaw !== null && $textIndexRaw !== '') {
             $idx = (int) $textIndexRaw;
             if (isset($textItems[$idx])) {
-                $selected = ['type' => 'text', 'index' => $idx, 'text' => $textItems[$idx]];
+                $selectedText = ['index' => $idx, 'text' => $textItems[$idx]];
             }
         }
 
-        if (!$selected) {
-            $type = (string) ($material['type'] ?? '');
-            if ($type === 'text' && !empty($material['text_content'])) {
-                $selected = [
-                    'type' => 'text',
-                    'index' => null,
-                    'text' => (string) $material['text_content'],
-                    'mode' => 'full',
-                ];
-            } elseif ($type === 'file' && !empty($files)) {
-                $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
-            } elseif ($type === 'folder') {
-                if (!empty($textItems)) {
-                    $selected = ['type' => 'text', 'index' => 0, 'text' => $textItems[0], 'mode' => 'default'];
-                } elseif (!empty($files)) {
-                    $selected = ['type' => 'file', 'file' => $files[0], 'mode' => 'default'];
-                }
-            }
+        if ($selectedFile) {
+            $selected = ['type' => 'file', 'file' => $selectedFile];
+        } elseif ($selectedText) {
+            $selected = ['type' => 'text', 'index' => $selectedText['index'], 'text' => $selectedText['text']];
         }
 
         return [
@@ -177,6 +170,8 @@ class StudentController extends BaseController
             'files' => $files,
             'text_items' => $textItems,
             'selected' => $selected,
+            'selected_file' => $selectedFile,
+            'selected_text' => $selectedText,
         ];
     }
 

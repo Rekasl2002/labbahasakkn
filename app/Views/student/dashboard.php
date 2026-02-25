@@ -10,7 +10,7 @@
     <div>
       <h1 style="margin:0">Dashboard Siswa</h1>
       <p class="muted" style="margin:6px 0 0">
-        Materi, chat ke admin, dan voice (WebRTC).
+        Materi, chat ke guru, dan voice (WebRTC).
       </p>
     </div>
   </header>
@@ -37,8 +37,8 @@
     <audio id="remoteAudio" class="audioEl" playsinline></audio>
 
     <div class="muted tiny" style="margin-top:8px">
-      Jika tidak bunyi: klik “Aktifkan Audio” agar browser meminta izin audio, lalu cek apakah speaker kamu dimute admin.
-      Mic/speaker bisa dikunci oleh admin.
+      Jika tidak bunyi: klik “Aktifkan Audio” agar browser meminta izin audio, lalu cek apakah speaker kamu dimute guru.
+      Mic/speaker bisa dikunci oleh guru.
       <br>
       Catatan: mic/speaker WebRTC butuh HTTPS (atau localhost).
     </div>
@@ -66,8 +66,8 @@
   <section class="card" style="margin-top:14px">
     <div class="row between wrap gap" style="align-items:flex-end">
       <div>
-        <h2 style="margin:0">Materi</h2>
-        <div class="muted tiny" style="margin-top:4px">Materi aktif dari admin akan muncul di sini.</div>
+        <h2 style="margin:0">Materi <span id="materialTitleLabel" class="muted"></span></h2>
+        <div class="muted tiny" style="margin-top:4px">Materi aktif dari guru akan muncul di sini.</div>
       </div>
       <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
     </div>

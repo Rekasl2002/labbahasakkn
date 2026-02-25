@@ -11,6 +11,7 @@
     chatMode: 'public',
     currentMaterial: null,
     broadcastText: '',
+    broadcastEnabled: false,
     selectedMicId: '',
     selectedSpkId: '',
     devicePermissionAsked: false,
@@ -24,6 +25,11 @@
     speakerVolume: 1,
   };
   let sessionReloadQueued = false;
+  let materialRenderSig = '';
+  let materialRefreshBusy = false;
+  let materialRefreshQueued = false;
+  let materialRefreshToken = 0;
+  let materialRefreshAppliedToken = 0;
 
   const grid = document.getElementById('participantsGrid');
   const chatLog = document.getElementById('chatLog');
@@ -33,6 +39,7 @@
     const privateTargetSel = document.getElementById('privateTarget');
     const broadcastInput = document.getElementById('broadcastText');
     const btnBroadcast = document.getElementById('btnBroadcastText');
+    const btnClearBroadcast = document.getElementById('btnClearBroadcastText');
     const chkAllowStudentMic = document.getElementById('chkAllowStudentMic');
     const chkAllowStudentSpk = document.getElementById('chkAllowStudentSpk');
     const matBox = document.getElementById('currentMaterialBox');
@@ -89,7 +96,6 @@
   let _renderScheduled = false;
 
   function esc(s){ return (s??'').toString().replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-  function nowTime(){ return new Date().toLocaleTimeString(); }
   function clamp01(v){
     const n = Number(v);
     if(!Number.isFinite(n)) return 1;
@@ -145,6 +151,28 @@
     if(chkAllowStudentSpk) chkAllowStudentSpk.checked = !!state.allowStudentSpeaker;
   }
 
+  function normalizeBroadcastEnabled(textValue, enabledValue){
+    const text = (textValue || '').toString().trim();
+    if(enabledValue === undefined || enabledValue === null || enabledValue === ''){
+      return text !== '';
+    }
+    const n = Number(enabledValue);
+    if(Number.isFinite(n)) return n === 1;
+    return !!enabledValue;
+  }
+
+  function syncTeacherTextInputState(){
+    if(!broadcastInput) return;
+    broadcastInput.classList.toggle('teacherTextActive', !!state.broadcastEnabled);
+  }
+
+  function setTeacherTextState(textValue, enabledValue){
+    state.broadcastText = (textValue || '').toString();
+    state.broadcastEnabled = normalizeBroadcastEnabled(state.broadcastText, enabledValue);
+    if(broadcastInput) broadcastInput.value = state.broadcastText;
+    syncTeacherTextInputState();
+  }
+
   function getSaved(key){
     try{ return localStorage.getItem(key) || ''; }catch(e){ return ''; }
   }
@@ -182,6 +210,51 @@
   function pidOf(v){
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
+  }
+
+  function studentNameByPid(pid){
+    const id = pidOf(pid);
+    if(!id) return 'Siswa';
+    const participant = state.participants.get(id);
+    const name = (participant && participant.student_name ? participant.student_name : '').toString().trim();
+    return name || `Siswa ${id}`;
+  }
+
+  function chatSenderLabel(payload){
+    const senderType = (payload && payload.sender_type ? payload.sender_type : '').toString().toLowerCase();
+    if(senderType === 'admin') return 'Guru';
+    if(senderType === 'student') return studentNameByPid(payload ? payload.sender_participant_id : 0);
+    return senderType || 'Pengguna';
+  }
+
+  function chatMetaForGuru(eventType, payload){
+    const p = payload || {};
+    const senderType = (p.sender_type || '').toString().toLowerCase();
+    const senderName = chatSenderLabel(p);
+    const targetName = studentNameByPid(p.target_participant_id);
+
+    if(eventType === 'message_sent'){
+      if(senderType === 'admin'){
+        return { meta: 'Mengirim ke Semua Siswa', emphasis: false, danger: false };
+      }
+      return { meta: `Pesan dari ${senderName}`, emphasis: false, danger: false };
+    }
+
+    if(eventType === 'message_private_admin'){
+      if(senderType === 'admin'){
+        return { meta: 'Pesan untuk Guru', emphasis: false, danger: false };
+      }
+      return { meta: `Pesan dari ${senderName}`, emphasis: true, danger: true };
+    }
+
+    if(eventType === 'message_private_student'){
+      if(senderType === 'admin'){
+        return { meta: `Mengirimkan pesan ke ${targetName}`, emphasis: true, danger: false };
+      }
+      return { meta: `Pesan dari ${senderName}`, emphasis: false, danger: false };
+    }
+
+    return { meta: 'Pesan', emphasis: false, danger: false };
   }
 
   function normalizePresenceState(raw){
@@ -972,7 +1045,7 @@
             </div>
           </div>
           <div class="row gap wrap" style="margin-top:8px">
-            <button class="btnPrivate" type="button">Private chat</button>
+            <button class="btnPrivate" type="button">Pesan ke Siswa Ini</button>
             <button class="btnWarn danger" type="button">Peringatan + Suara</button>
           </div>
         </div>`;
@@ -985,16 +1058,27 @@
         return `<option value="${p.id}">${esc(p.student_name)} (${esc(p.class_name)})</option>`;
       }).join('');
 
-      privateTargetSel.innerHTML = `<option value="">-- pilih siswa --</option>` + opts;
+      privateTargetSel.innerHTML = `<option value="">-- pilih nama siswa --</option>` + opts;
       privateTargetSel.value = old;
     }
   }
 
-  function appendChat(meta, body){
+  function appendChat(meta, body, options){
     if(!chatLog) return;
     const div = document.createElement('div');
     div.className = 'msg';
-    div.innerHTML = `<div class="meta">${esc(meta)}</div><div>${esc(body)}</div>`;
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'meta';
+    if(options && options.emphasis) metaEl.classList.add('emphasis');
+    if(options && options.danger) metaEl.classList.add('danger');
+    metaEl.textContent = (meta || '').toString();
+
+    const bodyEl = document.createElement('div');
+    bodyEl.textContent = (body || '').toString();
+
+    div.appendChild(metaEl);
+    div.appendChild(bodyEl);
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
@@ -1066,20 +1150,22 @@
       }
 
       if(t === 'message_sent'){
-        appendChat(`[Public] ${p.sender_type} • ${p.created_at||nowTime()}`, p.body);
+        const info = chatMetaForGuru(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
 
       if(t === 'message_private_admin'){
-        appendChat(`[Private->Admin] ${p.sender_type} • ${p.created_at||nowTime()}`, p.body);
+        const info = chatMetaForGuru(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
 
       if(t === 'message_private_student'){
-        appendChat(`[Private] admin->student:${p.target_participant_id} • ${p.created_at||nowTime()}`, p.body);
+        const info = chatMetaForGuru(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
 
       if(t === 'broadcast_text_changed'){
-        state.broadcastText = p.broadcast_text || '';
-        if(broadcastInput) broadcastInput.value = state.broadcastText;
+        setTeacherTextState(p.broadcast_text || '', p.broadcast_enabled);
       }
 
       if(t === 'voice_lock_changed'){
@@ -1128,8 +1214,7 @@
     }
 
     if(snap && snap.state){
-      state.broadcastText = snap.state.broadcast_text || '';
-      if(broadcastInput) broadcastInput.value = state.broadcastText;
+      setTeacherTextState(snap.state.broadcast_text || '', snap.state.broadcast_enabled);
       if(snap.state.allow_student_mic !== undefined){
         state.allowStudentMic = !!snap.state.allow_student_mic;
       }
@@ -1139,8 +1224,8 @@
       syncLockUI();
     }
 
-    if(snap && snap.currentMaterial){
-      renderMaterialBox(snap.currentMaterial);
+    if(snap && Object.prototype.hasOwnProperty.call(snap, 'currentMaterial')){
+      renderMaterialBox(snap.currentMaterial || null);
     }
   }
 
@@ -1180,141 +1265,219 @@
     }catch(e){}
   }
 
-  function renderMaterialBox(cm){
-    if(!matBox) return;
-    if(!cm || !cm.material){
-      matBox.textContent = 'Belum ada materi.';
-      matBox.classList.add('muted');
-      return;
+  function selectedTextFromCurrentMaterial(cm){
+    const legacy = cm && cm.selected ? cm.selected : null;
+    if(cm && cm.selected_text && typeof cm.selected_text === 'object'){
+      return cm.selected_text;
     }
+    if(legacy && legacy.type === 'text'){
+      return { index: legacy.index, text: legacy.text || '' };
+    }
+    return null;
+  }
+
+  function selectedFileFromCurrentMaterial(cm){
+    const legacy = cm && cm.selected ? cm.selected : null;
+    if(cm && cm.selected_file && typeof cm.selected_file === 'object'){
+      return cm.selected_file;
+    }
+    if(legacy && legacy.type === 'file' && legacy.file){
+      return legacy.file;
+    }
+    return null;
+  }
+
+  function getMaterialRenderSignature(cm){
+    if(!cm || !cm.material) return 'none';
     const m = cm.material || {};
     const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
     const textItems = Array.isArray(cm.text_items) ? cm.text_items : [];
+    const selectedText = selectedTextFromCurrentMaterial(cm);
+    const selectedFile = selectedFileFromCurrentMaterial(cm);
 
-    let selected = cm.selected || null;
-    if(!selected){
-      if(cm.file) selected = {type:'file', file: cm.file};
-      else if(m.type === 'text' && m.text_content) selected = {type:'text', text: m.text_content};
+    const selectedTextSig = selectedText
+      ? `${selectedText.index ?? ''}:${selectedText.text ?? ''}`
+      : '';
+    const selectedFileSig = selectedFile
+      ? [
+          selectedFile.id || '',
+          selectedFile.filename || '',
+          selectedFile.url_path || '',
+          selectedFile.preview_url_path || '',
+          selectedFile.cover_url_path || '',
+          selectedFile.mime || '',
+        ].join('|')
+      : '';
+
+    const filesSig = files
+      .map((f)=> [f.id || '', f.filename || '', f.url_path || ''].join(':'))
+      .join(',');
+    const textsSig = textItems.join('\n');
+
+    return [
+      m.id || '',
+      m.title || '',
+      m.type || '',
+      selectedTextSig,
+      selectedFileSig,
+      filesSig,
+      textsSig,
+    ].join('||');
+  }
+
+  function renderMaterialBox(cm){
+    if(!matBox) return;
+    const nextSig = getMaterialRenderSignature(cm);
+    if(nextSig === materialRenderSig) return;
+    materialRenderSig = nextSig;
+
+    if(!cm || !cm.material){
+      matBox.textContent = 'Belum ada materi.';
+      matBox.classList.add('muted');
+      _boundAdminMedia = null;
+      return;
     }
 
-      const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
-      const isPdf = (name)=> /\.pdf$/i.test(name||'');
-      const getCoverUrl = (file)=>{
-        if(!file) return '';
-        return file.cover_url_path || file.poster_url_path || file.thumbnail_url_path || '';
-      };
-      const renderFileTitle = (filename)=>{
-        if(!filename) return '';
-        return `<div class="fileTitle">${esc(filename)}</div>`;
-      };
-      const renderFilePreview = (file)=>{
-        if(!file || !file.url_path) return '';
-        const mime = (file.mime||'').toLowerCase();
-        const url = esc(file.url_path);
-        const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
-        const filename = file.filename || 'file';
-        const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
-        const coverUrl = getCoverUrl(file);
+    const m = cm.material || {};
+    const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
+    const textItems = Array.isArray(cm.text_items) ? cm.text_items : [];
+    const selectedText = selectedTextFromCurrentMaterial(cm);
+    const selectedFile = selectedFileFromCurrentMaterial(cm);
 
-        if(mime.startsWith('audio/')){
-          return `<div class="mediaBlock">
-            ${renderFileTitle(filename)}
-            ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
-            <audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>
-          </div>`;
-        }
-        if(mime.startsWith('video/')){
-          const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
-          return `<div class="mediaBlock">
-            ${renderFileTitle(filename)}
-            ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
-            <video data-admin-media="1"${fileIdAttr}${poster} controls src="${url}" style="max-width:100%"></video>
-          </div>`;
-        }
-        if(mime.startsWith('image/')){
-          return `<div class="mediaBlock">
-            <div class="row between wrap gap" style="align-items:center">
-              ${renderFileTitle(filename)}
-              <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
-            </div>
-            <img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">
-          </div>`;
-        }
-        if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
-          const pdfUrl = previewUrl || url;
-          return `<div class="docPreview">
-            <div class="docPreviewHeader">
-              ${renderFileTitle(filename)}
-              <div class="row gap">
-                <button class="btn tiny" type="button" data-preview-url="${pdfUrl}" data-preview-title="${esc(filename)}">Perbesar</button>
-                <a class="btn tiny" href="${pdfUrl}" target="_blank">Buka</a>
-              </div>
-            </div>
-            <div class="docPreviewBody">
-              <iframe class="docFrame small" src="${pdfUrl}"></iframe>
-            </div>
-          </div>`;
-        }
-        if(isOfficeDoc(filename) || isOfficeDoc(url)){
-          return `<div class="docPreview">
-            <div class="docPreviewHeader">
-              ${renderFileTitle(filename)}
-              <div class="row gap">
-                <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
-                <a class="btn tiny" href="${url}" target="_blank">Buka</a>
-              </div>
-            </div>
-            <div class="muted tiny" style="margin-top:8px">
-              Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
-            </div>
-          </div>`;
-        }
+    const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
+    const isPdf = (name)=> /\.pdf$/i.test(name||'');
+    const getCoverUrl = (file)=>{
+      if(!file) return '';
+      return file.cover_url_path || file.poster_url_path || file.thumbnail_url_path || '';
+    };
+    const renderFileNameBelow = (filename)=>{
+      if(!filename) return '';
+      return `<div class="fileTitle materialFileName">${esc(filename)}</div>`;
+    };
+    const renderFilePreview = (file)=>{
+      if(!file || !file.url_path) return '';
+      const mime = (file.mime||'').toLowerCase();
+      const url = esc(file.url_path);
+      const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
+      const filename = file.filename || 'file';
+      const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
+      const coverUrl = getCoverUrl(file);
+
+      if(mime.startsWith('audio/')){
         return `<div class="mediaBlock">
-          ${renderFileTitle(filename)}
-          <div><a href="${url}" target="_blank">Buka file</a></div>
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          <audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>
+          ${renderFileNameBelow(filename)}
         </div>`;
-      };
+      }
+      if(mime.startsWith('video/')){
+        const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
+        return `<div class="mediaBlock">
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          <video data-admin-media="1"${fileIdAttr}${poster} controls src="${url}" style="max-width:100%"></video>
+          ${renderFileNameBelow(filename)}
+        </div>`;
+      }
+      if(mime.startsWith('image/')){
+        return `<div class="mediaBlock">
+          <div class="row between wrap gap" style="align-items:center; margin-bottom:6px">
+            <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
+          </div>
+          <img src="${url}" alt="${esc(filename)}" style="max-width:100%;height:auto">
+          ${renderFileNameBelow(filename)}
+        </div>`;
+      }
+      if(mime === 'application/pdf' || isPdf(filename) || isPdf(url) || previewUrl){
+        const pdfUrl = previewUrl || url;
+        return `<div class="docPreview">
+          <div class="docPreviewBody">
+            <iframe class="docFrame small" src="${pdfUrl}"></iframe>
+          </div>
+          <div class="row gap" style="margin-top:8px">
+            <button class="btn tiny" type="button" data-preview-url="${pdfUrl}" data-preview-title="${esc(filename)}">Perbesar</button>
+            <a class="btn tiny" href="${pdfUrl}" target="_blank">Buka</a>
+          </div>
+          ${renderFileNameBelow(filename)}
+        </div>`;
+      }
+      if(isOfficeDoc(filename) || isOfficeDoc(url)){
+        return `<div class="docPreview">
+          <div class="muted tiny" style="margin-top:8px">
+            Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
+          </div>
+          <div class="row gap" style="margin-top:8px">
+            <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
+            <a class="btn tiny" href="${url}" target="_blank">Buka</a>
+          </div>
+          ${renderFileNameBelow(filename)}
+        </div>`;
+      }
+      return `<div class="mediaBlock">
+        <div><a href="${url}" target="_blank">Buka file</a></div>
+        ${renderFileNameBelow(filename)}
+      </div>`;
+    };
 
-    let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
-    html += `<div style="margin-top:8px">`;
-    if(selected && selected.type === 'text'){
-      html += `<div class="materialText">${esc(selected.text||'')}</div>`;
-    }else if(selected && selected.type === 'file'){
-      html += renderFilePreview(selected.file);
-    }else{
-      html += `<div class="muted">Belum ada item dipilih.</div>`;
+    let html = `<div><b>${esc(m.title||'')}</b></div>`;
+    html += `<div class="materialPreviewCard" style="margin-top:10px">`;
+    html += `<div class="muted tiny">Preview yang sedang ditampilkan ke siswa</div>`;
+
+    let hasPreview = false;
+    if(selectedText){
+      hasPreview = true;
+      html += `<div class="muted tiny" style="margin-top:8px">Teks yang ditampilkan (Daftar Teks)</div>`;
+      html += `<div class="materialText">${esc(selectedText.text||'')}</div>`;
+    }
+    if(selectedFile){
+      hasPreview = true;
+      html += `<div class="muted tiny" style="margin-top:10px">File yang ditampilkan</div>`;
+      html += renderFilePreview(selectedFile);
+    }
+    if(!hasPreview){
+      html += `<div class="muted" style="margin-top:8px">Belum ada item yang ditampilkan.</div>`;
     }
     html += `</div>`;
 
+    html += `<div class="materialManageCard" style="margin-top:10px">`;
     if(textItems.length){
-      html += `<div class="muted tiny" style="margin-top:10px">Daftar Teks</div>`;
+      html += `<div class="row between wrap gap" style="align-items:center">
+        <div class="muted tiny">Daftar Teks</div>
+        <button class="btn tiny iconBtn" type="button" data-mat-action="hide-text" title="Tutup teks yang sedang ditampilkan" aria-label="Tutup teks yang sedang ditampilkan">&times;</button>
+      </div>`;
       html += `<ol class="materialList">`;
       textItems.forEach((t, i)=>{
-        const hasIndex = selected && selected.type === 'text' && selected.index !== null && selected.index !== undefined && selected.index !== '';
-        const active = hasIndex && Number(selected.index) === i;
+        const active = !!(selectedText && selectedText.index !== null && selectedText.index !== undefined && Number(selectedText.index) === i);
         html += `<li class="materialItem ${active ? 'active' : ''}">
           <div class="label"><span class="muted">${i+1}.</span> ${esc(t)}</div>
-          <button class="btn tiny" type="button" data-mat-action="pick-text" data-text-index="${i}">Tampilkan</button>
+          <button class="btn tiny iconBtn materialActionBtn" type="button" data-mat-action="pick-text" data-text-index="${i}" title="Tampilkan teks ini" aria-label="Tampilkan teks ini">&#9654;</button>
         </li>`;
       });
       html += `</ol>`;
     }
 
     if(files.length){
-      html += `<div class="muted tiny" style="margin-top:10px">Daftar File</div>`;
+      html += `<div class="row between wrap gap" style="margin-top:10px;align-items:center">
+        <div class="muted tiny">Daftar File</div>
+        <button class="btn tiny iconBtn" type="button" data-mat-action="hide-file" title="Tutup file materi yang sedang ditampilkan" aria-label="Tutup file materi yang sedang ditampilkan">&times;</button>
+      </div>`;
       html += `<ul class="materialList">`;
       files.forEach((f)=>{
-        const active = selected && selected.type === 'file' && selected.file && Number(selected.file.id) === Number(f.id);
+        const active = !!(selectedFile && Number(selectedFile.id) === Number(f.id));
         html += `<li class="materialItem ${active ? 'active' : ''}">
           <div class="label">${esc(f.filename||'file')}</div>
-          <button class="btn tiny" type="button" data-mat-action="pick-file" data-file-id="${f.id}">Tampilkan</button>
+          <button class="btn tiny iconBtn materialActionBtn" type="button" data-mat-action="pick-file" data-file-id="${f.id}" title="Tampilkan file ini" aria-label="Tampilkan file ini">&#9654;</button>
         </li>`;
       });
       html += `</ul>`;
     }
+    if(!textItems.length && !files.length){
+      html += `<div class="muted">Belum ada teks atau file dalam materi ini.</div>`;
+    }
+    html += `</div>`;
 
     matBox.innerHTML = html;
     matBox.classList.remove('muted');
+    _boundAdminMedia = null;
     bindAdminMediaControls();
   }
 
@@ -1374,10 +1537,28 @@
   }
 
   async function refreshMaterial(){
-    const res = await fetch(API('/api/material/current'), {headers:{'Accept':'application/json'}});
-    const data = await res.json().catch(()=>null);
-    if(data && data.ok){
-      renderMaterialBox(data.currentMaterial);
+    if(materialRefreshBusy){
+      materialRefreshQueued = true;
+      return;
+    }
+    materialRefreshBusy = true;
+    const token = ++materialRefreshToken;
+    try{
+      const res = await fetch(API('/api/material/current'), {headers:{'Accept':'application/json'}});
+      const data = await res.json().catch(()=>null);
+      if(token < materialRefreshAppliedToken) return;
+      materialRefreshAppliedToken = token;
+      if(data && data.ok){
+        renderMaterialBox(data.currentMaterial || null);
+      }
+    }catch(e){
+      // ignore network error, poller akan coba lagi
+    }finally{
+      materialRefreshBusy = false;
+      if(materialRefreshQueued){
+        materialRefreshQueued = false;
+        refreshMaterial();
+      }
     }
   }
 
@@ -1411,7 +1592,7 @@
           chatModeSel.dispatchEvent(new Event('change'));
         }
 
-        appendChat('System', `Private target set to participant:${pid}`);
+        appendChat('Info', `Tujuan pesan diatur ke ${studentNameByPid(pid)}.`);
       }
 
       if(ev.target.classList.contains('btnWarn')){
@@ -1494,10 +1675,21 @@
     });
   }
 
+  async function applyTeacherText(value){
+    const text = (value || '').toString();
+    const r = await post('/api/control/admin/broadcast-text', {broadcast_text: text});
+    if(r && r.ok){
+      setTeacherTextState(r.broadcast_text || '', r.broadcast_enabled);
+      refreshMaterial();
+    }
+  }
+
   if(btnBroadcast){
-    btnBroadcast.onclick = ()=>{
-      post('/api/control/admin/broadcast-text', {broadcast_text: (broadcastInput && broadcastInput.value) ? broadcastInput.value : ''});
-    };
+    btnBroadcast.onclick = ()=> applyTeacherText((broadcastInput && broadcastInput.value) ? broadcastInput.value : '');
+  }
+
+  if(btnClearBroadcast){
+    btnClearBroadcast.onclick = ()=> applyTeacherText('');
   }
 
   if(matBox){
@@ -1513,6 +1705,19 @@
       if(action === 'pick-text'){
         const textIndex = btn.dataset.textIndex || '';
         const r = await post('/api/material/select', {item_type:'text', text_index: textIndex});
+        if(r && r.ok){
+          if(state.broadcastEnabled){
+            setTeacherTextState(state.broadcastText, 0);
+          }
+          refreshMaterial();
+        }
+      }
+      if(action === 'hide-text'){
+        const r = await post('/api/material/select', {item_type:'clear_text'});
+        if(r && r.ok) refreshMaterial();
+      }
+      if(action === 'hide-file'){
+        const r = await post('/api/material/select', {item_type:'clear_file'});
         if(r && r.ok) refreshMaterial();
       }
     });
@@ -1562,6 +1767,12 @@
   });
   poller.start();
 
+  setTeacherTextState(
+    (broadcastInput && broadcastInput.value) ? broadcastInput.value : '',
+    (broadcastInput && Object.prototype.hasOwnProperty.call(broadcastInput.dataset, 'enabled'))
+      ? broadcastInput.dataset.enabled
+      : null
+  );
   refreshMaterial();
   updateVoiceStatus();
   syncLockUI();

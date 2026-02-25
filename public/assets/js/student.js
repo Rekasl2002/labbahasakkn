@@ -9,6 +9,7 @@
   const chatInput = document.getElementById('chatInput');
   const btnSendChat = document.getElementById('btnSendChat');
   const materialViewer = document.getElementById('materialViewer');
+  const materialTitleLabel = document.getElementById('materialTitleLabel');
   const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
   const broadcastBox = document.getElementById('broadcastBox');
   const teacherTextBox = document.getElementById('teacherTextBox');
@@ -49,6 +50,7 @@
     micVolume: 1,
     speakerVolume: 1,
     broadcastText: '',
+    broadcastEnabled: false,
     materialText: '',
     activeTextSource: '',
     currentMaterialId: 0,
@@ -83,6 +85,7 @@
   let voiceCheckTimer = null;
   let sessionExitQueued = false;
   let poller = null;
+  let warningAudioEl = null;
 
   function mkCallId(){
     if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -147,7 +150,7 @@
     showWarningBanner._timer = setTimeout(()=>{ el.style.display = 'none'; }, 7000);
   }
 
-  function playWarningTone(){
+  function playDefaultWarningTone(){
     try{
       const AC = window.AudioContext || window.webkitAudioContext;
       if(!AC) return;
@@ -173,6 +176,28 @@
       beep(0.22, 660, 0.22, 0.18);
       setTimeout(()=>{ ctx.close().catch(()=>{}); }, 1000);
     }catch(e){}
+  }
+
+  function playWarningTone(customUrl){
+    const url = (customUrl || '').toString().trim();
+    if(url){
+      try{
+        if(!warningAudioEl){
+          warningAudioEl = new Audio();
+          warningAudioEl.preload = 'auto';
+        }
+        if(warningAudioEl.src !== url){
+          warningAudioEl.src = url;
+        }
+        warningAudioEl.currentTime = 0;
+        const p = warningAudioEl.play();
+        if(p && typeof p.catch === 'function'){
+          p.catch(()=> playDefaultWarningTone());
+        }
+        return;
+      }catch(e){}
+    }
+    playDefaultWarningTone();
   }
 
   function leaveEndedSession(message){
@@ -493,7 +518,7 @@
     btnMic.textContent = state.myMicOn ? 'Mic: ON' : 'Mic: OFF';
     const locked = !state.allowToggleMic;
     btnMic.disabled = locked;
-    btnMic.title = locked ? 'Mic dikunci admin' : 'Aktif/nonaktif mic kamu';
+    btnMic.title = locked ? 'Mic dikunci guru' : 'Aktif/nonaktif mic kamu';
   }
 
   function syncSpkBtn(){
@@ -502,7 +527,7 @@
     btnSpk.textContent = state.mySpeakerOn ? 'Speaker: ON' : 'Speaker: OFF';
     const locked = !state.allowToggleSpeaker;
     btnSpk.disabled = locked;
-    btnSpk.title = locked ? 'Speaker dikunci admin' : 'Aktif/nonaktif speaker kamu';
+    btnSpk.title = locked ? 'Speaker dikunci guru' : 'Aktif/nonaktif speaker kamu';
   }
 
   async function syncMyMicFromControl(nextMicOn, msgOn, msgOff){
@@ -1003,18 +1028,88 @@
     }).join('');
   }
 
-  function appendChat(meta, body){
+  function peerNameByPid(pid){
+    const id = Number(pid || 0);
+    if(!id) return 'Siswa';
+    const peer = state.peers.get(id);
+    const name = (peer && peer.student_name ? peer.student_name : '').toString().trim();
+    return name || `Siswa ${id}`;
+  }
+
+  function chatMetaForStudent(eventType, payload){
+    const p = payload || {};
+    const senderType = (p.sender_type || '').toString().toLowerCase();
+    const senderPid = Number(p.sender_participant_id || 0);
+
+    if(eventType === 'message_sent'){
+      if(senderType === 'admin') return { meta: 'Guru Mengirim ke Semua Siswa', emphasis: true, danger: false };
+      if(senderType === 'student' && senderPid === myId) return { meta: 'Kamu Mengirim ke Semua Siswa', emphasis: false, danger: false };
+      if(senderType === 'student') return { meta: `Pesan dari ${peerNameByPid(senderPid)}`, emphasis: false, danger: false };
+      return { meta: 'Pesan', emphasis: false, danger: false };
+    }
+
+    if(eventType === 'message_private_admin'){
+      if(senderType === 'student' && senderPid === myId) return { meta: 'Kamu Mengirim ke Guru', emphasis: false, danger: false };
+      if(senderType === 'admin') return { meta: 'Guru Mengirim ke Kamu', emphasis: true, danger: true };
+      if(senderType === 'student') return { meta: `Pesan dari ${peerNameByPid(senderPid)}`, emphasis: false, danger: false };
+      return { meta: 'Pesan ke Guru', emphasis: false, danger: false };
+    }
+
+    if(eventType === 'message_private_student'){
+      if(senderType === 'admin') return { meta: 'Guru Mengirim ke Kamu', emphasis: true, danger: true };
+      if(senderType === 'student' && senderPid === myId) return { meta: 'Kamu Mengirim ke Siswa', emphasis: false, danger: false };
+      if(senderType === 'student') return { meta: `Pesan dari ${peerNameByPid(senderPid)}`, emphasis: false, danger: false };
+      return { meta: 'Pesan untuk Siswa', emphasis: false, danger: false };
+    }
+
+    return { meta: 'Pesan', emphasis: false, danger: false };
+  }
+
+  function appendChat(meta, body, options){
     if(!chatLog) return;
     const div = document.createElement('div');
     div.className = 'msg';
-    div.innerHTML = `<div class="meta">${esc(meta)}</div><div>${esc(body)}</div>`;
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'meta';
+    if(options && options.emphasis) metaEl.classList.add('emphasis');
+    if(options && options.danger) metaEl.classList.add('danger');
+    metaEl.textContent = (meta || '').toString();
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'body';
+    if(options && options.bodyEmphasis) bodyEl.classList.add('emphasis');
+    if(options && options.bodyDanger) bodyEl.classList.add('danger');
+    bodyEl.textContent = (body || '').toString();
+
+    div.appendChild(metaEl);
+    div.appendChild(bodyEl);
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function normalizeBroadcastEnabled(textValue, enabledValue){
+    const text = (textValue || '').toString().trim();
+    if(enabledValue === undefined || enabledValue === null || enabledValue === ''){
+      return text !== '';
+    }
+    const n = Number(enabledValue);
+    if(Number.isFinite(n)) return n === 1;
+    return !!enabledValue;
+  }
+
+  function setBroadcastState(textValue, enabledValue){
+    const prevText = state.broadcastText;
+    const prevEnabled = state.broadcastEnabled;
+    state.broadcastText = (textValue || '').toString();
+    state.broadcastEnabled = normalizeBroadcastEnabled(state.broadcastText, enabledValue);
+    if(broadcastBox) broadcastBox.textContent = state.broadcastText;
+    return prevText !== state.broadcastText || prevEnabled !== state.broadcastEnabled;
+  }
+
   function renderTeacherText(){
     if(!teacherTextBox) return;
-    const b = (state.broadcastText || '').trim();
+    const b = state.broadcastEnabled ? (state.broadcastText || '').trim() : '';
     const t = (state.materialText || '').trim();
 
     let text = '';
@@ -1036,7 +1131,7 @@
   }
 
   function pickActiveText(source){
-    const b = (state.broadcastText || '').trim();
+    const b = state.broadcastEnabled ? (state.broadcastText || '').trim() : '';
     const t = (state.materialText || '').trim();
     if(source === 'broadcast' && b){
       state.activeTextSource = 'broadcast';
@@ -1063,6 +1158,7 @@
     if(!cm || !cm.material){
       materialViewer.textContent = 'Belum ada materi.';
       materialViewer.classList.add('muted');
+      if(materialTitleLabel) materialTitleLabel.textContent = '';
       state.materialText = '';
       state.currentMaterialId = 0;
       state.lastFile = null;
@@ -1074,6 +1170,10 @@
     }
 
     const m = cm.material || {};
+    if(materialTitleLabel){
+      const title = (m.title || '').toString().trim();
+      materialTitleLabel.textContent = title ? ` '${title}'` : '';
+    }
     const materialId = Number(m.id || 0);
     if(materialId && state.currentMaterialId !== materialId){
       state.currentMaterialId = materialId;
@@ -1082,7 +1182,13 @@
       pickActiveText();
     }
     const files = Array.isArray(cm.files) ? cm.files : (cm.file ? [cm.file] : []);
-    const selected = cm.selected || null;
+    const selectedLegacy = cm.selected || null;
+    const selectedText = (cm.selected_text && typeof cm.selected_text === 'object')
+      ? cm.selected_text
+      : ((selectedLegacy && selectedLegacy.type === 'text') ? { index: selectedLegacy.index, text: selectedLegacy.text || '' } : null);
+    const selectedFile = (cm.selected_file && typeof cm.selected_file === 'object')
+      ? cm.selected_file
+      : ((selectedLegacy && selectedLegacy.type === 'file' && selectedLegacy.file) ? selectedLegacy.file : null);
 
     const isOfficeDoc = (name)=> /\.(docx?|xlsx?|pptx?)$/i.test(name||'');
     const isPdf = (name)=> /\.pdf$/i.test(name||'');
@@ -1118,7 +1224,7 @@
           ${renderFileTitle(filename)}
           ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
           <audio class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="width:100%" playsinline tabindex="-1"></audio>
-          <div class="muted">Audio dikendalikan oleh admin.</div>
+          <div class="muted">Audio dikendalikan oleh guru.</div>
         </div>`;
       }
       if(mime.startsWith('video/')){
@@ -1127,7 +1233,7 @@
           ${renderFileTitle(filename)}
           ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
           <video class="mediaLocked" data-student-media="1"${fileIdAttr}${poster} src="${url}" style="max-width:100%" playsinline tabindex="-1"></video>
-          <div class="muted">Video dikendalikan oleh admin.</div>
+          <div class="muted">Video dikendalikan oleh guru.</div>
         </div>`;
       }
       if(mime.startsWith('image/')){
@@ -1161,31 +1267,25 @@
     };
 
     let teacherText = '';
-    if(selected && selected.type === 'text'){
-      teacherText = selected.text || '';
-    }else if(m.type === 'text' && m.text_content){
-      teacherText = m.text_content || '';
+    if(selectedText){
+      teacherText = selectedText.text || '';
     }
-    if(teacherText){
-      state.materialText = teacherText;
-      const hasBroadcast = (state.broadcastText || '').trim() !== '';
+    state.materialText = teacherText;
+    if(state.materialText){
+      const hasBroadcast = state.broadcastEnabled && (state.broadcastText || '').trim() !== '';
       const allowOverride = state.materialChangeFromEvent || !hasBroadcast || state.activeTextSource !== 'broadcast';
       if(allowOverride){
         pickActiveText('material');
       }
+    }else if(state.activeTextSource === 'material'){
+      pickActiveText();
     }
     renderTeacherText();
 
-    let selectedFile = null;
-    if(selected && selected.type === 'file' && selected.file){
-      selectedFile = selected.file;
-      state.lastFile = selected.file;
-    }else if(state.lastFile){
-      const stillExists = files.find(f=> Number(f.id) === Number(state.lastFile.id));
-      if(stillExists) selectedFile = stillExists;
-    }else if(files.length){
-      selectedFile = files[0];
-      state.lastFile = files[0];
+    if(selectedFile){
+      state.lastFile = selectedFile;
+    }else{
+      state.lastFile = null;
     }
 
     const fileSig = selectedFile
@@ -1203,14 +1303,11 @@
     );
 
     if(shouldUpdateViewer){
-      let html = `<div><b>${esc(m.title||'')}</b> <span class="muted">(${esc(m.type||'')})</span></div>`;
-      html += `<div style="margin-top:8px">`;
+      let html = `<div>`;
       if(selectedFile){
         html += renderFilePreview(selectedFile);
-      }else if(files.length){
-        html += renderFilePreview(files[0]);
       }else{
-        html += `<div class="muted">Belum ada file materi.</div>`;
+        html += `<div class="muted">Belum ada materi yang ditampilkan oleh guru.</div>`;
       }
       html += `</div>`;
 
@@ -1306,11 +1403,9 @@
       renderMaterial(data.currentMaterial);
 
       if(data.state){
-        const prevBroadcast = state.broadcastText;
-        state.broadcastText = data.state.broadcast_text || '';
-        if(broadcastBox) broadcastBox.textContent = state.broadcastText;
-        if(prevBroadcast !== state.broadcastText){
-          pickActiveText('broadcast');
+        const changed = setBroadcastState(data.state.broadcast_text || '', data.state.broadcast_enabled);
+        if(changed){
+          pickActiveText(state.broadcastEnabled ? 'broadcast' : undefined);
         }else if(!state.activeTextSource){
           pickActiveText();
         }
@@ -1348,11 +1443,9 @@
     }
 
     if(snap && snap.state){
-      const prevBroadcast = state.broadcastText;
-      state.broadcastText = snap.state.broadcast_text || '';
-      if(broadcastBox) broadcastBox.textContent = state.broadcastText;
-      if(prevBroadcast !== state.broadcastText){
-        pickActiveText('broadcast');
+      const changed = setBroadcastState(snap.state.broadcast_text || '', snap.state.broadcast_enabled);
+      if(changed){
+        pickActiveText(state.broadcastEnabled ? 'broadcast' : undefined);
       }else if(!state.activeTextSource){
         pickActiveText();
       }
@@ -1462,8 +1555,8 @@
 
         if(p.participant_id === myId){
           const forced = !!p.forced_by_admin;
-          const msgOn = forced ? 'Mic diaktifkan admin.' : 'Mic diaktifkan.';
-          const msgOff = forced ? 'Mic dimatikan admin.' : 'Mic dimatikan.';
+          const msgOn = forced ? 'Mic diaktifkan guru.' : 'Mic diaktifkan.';
+          const msgOff = forced ? 'Mic dimatikan guru.' : 'Mic dimatikan.';
           await syncMyMicFromControl(!!p.mic_on, msgOn, msgOff);
         }
       }
@@ -1473,8 +1566,8 @@
         renderPeers();
         await syncMyMicFromControl(
           !!p.mic_on,
-          'Mic diaktifkan admin.',
-          'Mic dimatikan admin.'
+          'Mic diaktifkan guru.',
+          'Mic dimatikan guru.'
         );
       }
 
@@ -1484,7 +1577,7 @@
         if(p.participant_id === myId){
           state.mySpeakerOn = !!p.speaker_on;
           applySpeakerState();
-          setAudioStatus(state.mySpeakerOn ? 'Speaker diaktifkan.' : 'Speaker dimatikan admin.');
+          setAudioStatus(state.mySpeakerOn ? 'Speaker diaktifkan.' : 'Speaker dimatikan guru.');
           syncSpkBtn();
           scheduleVoiceCheck(200);
         }
@@ -1494,7 +1587,7 @@
         for(const x of state.peers.values()){ x.speaker_on = p.speaker_on ? 1 : 0; }
         state.mySpeakerOn = !!p.speaker_on;
         applySpeakerState();
-        setAudioStatus(state.mySpeakerOn ? 'Speaker diaktifkan.' : 'Speaker dimatikan admin.');
+        setAudioStatus(state.mySpeakerOn ? 'Speaker diaktifkan.' : 'Speaker dimatikan guru.');
         syncSpkBtn();
         scheduleVoiceCheck(200);
       }
@@ -1511,19 +1604,21 @@
       }
 
       if(t === 'message_sent'){
-        appendChat(`[Public] ${p.sender_type} • ${p.created_at}`, p.body);
+        const info = chatMetaForStudent(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
       if(t === 'message_private_admin'){
-        appendChat(`[Private] ${p.sender_type} • ${p.created_at}`, p.body);
+        const info = chatMetaForStudent(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
       if(t === 'message_private_student'){
-        appendChat(`[Private] admin • ${p.created_at}`, p.body);
+        const info = chatMetaForStudent(t, p);
+        appendChat(info.meta, p.body, { emphasis: info.emphasis, danger: info.danger });
       }
 
       if(t === 'broadcast_text_changed'){
-        state.broadcastText = p.broadcast_text || '';
-        if(broadcastBox) broadcastBox.textContent = state.broadcastText;
-        pickActiveText('broadcast');
+        setBroadcastState(p.broadcast_text || '', p.broadcast_enabled);
+        pickActiveText(state.broadcastEnabled ? 'broadcast' : undefined);
         renderTeacherText();
       }
 
@@ -1538,17 +1633,22 @@
 
       if(t === 'admin_warning'){
         const msg = (p.message || 'Peringatan dari guru.').toString();
-        appendChat('Peringatan Guru', msg);
+        appendChat('Peringatan Guru', msg, {
+          emphasis: true,
+          danger: true,
+          bodyEmphasis: true,
+          bodyDanger: true,
+        });
         setAudioStatus(msg);
         showWarningBanner(msg);
         if(Number(p.play_sound || 0) === 1){
-          playWarningTone();
+          playWarningTone(p.warning_sound_url || '');
         }
       }
 
       if(t === 'session_ended'){
-        appendChat('System', 'Sesi ditutup oleh admin.');
-        leaveEndedSession('Sesi ditutup oleh admin. Mengarahkan ke halaman login...');
+        appendChat('Info', 'Sesi ditutup oleh guru.');
+        leaveEndedSession('Sesi ditutup oleh guru. Mengarahkan ke halaman login...');
       }
 
       if(t === 'rtc_signal'){
@@ -1570,7 +1670,7 @@
   if(btnMic){
     btnMic.onclick = async ()=>{
       if(!state.allowToggleMic){
-        setAudioStatus('Mic dikunci admin.');
+        setAudioStatus('Mic dikunci guru.');
         return;
       }
       const r = await post('/api/control/mic/toggle', {});
@@ -1609,7 +1709,7 @@
   if(btnSpk){
     btnSpk.onclick = async ()=>{
       if(!state.allowToggleSpeaker){
-        setAudioStatus('Speaker dikunci admin.');
+        setAudioStatus('Speaker dikunci guru.');
         return;
       }
       const r = await post('/api/control/speaker/toggle', {});

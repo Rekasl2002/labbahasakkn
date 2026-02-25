@@ -10,6 +10,8 @@ $file = $file ?? null;
 $files = $files ?? [];
 $tab = $tab ?? 'auto-detect';
 $materialsTab = $materialsTab ?? 'list';
+$warningSoundPath = $warningSoundPath ?? '';
+$warningSoundUrl = $warningSoundUrl ?? '';
 ?>
 
 <?= view('layout/partials/sidebar_left_settings', ['role' => 'admin', 'tab' => $tab]) ?>
@@ -48,6 +50,11 @@ $materialsTab = $materialsTab ?? 'list';
     </section>
   <?php elseif ($tab === 'branding'): ?>
     <?= view('admin/settings/branding_form', ['settings' => $settings]) ?>
+  <?php elseif ($tab === 'warning-sound'): ?>
+    <?= view('admin/settings/warning_sound_form', [
+      'warningSoundPath' => $warningSoundPath,
+      'warningSoundUrl' => $warningSoundUrl,
+    ]) ?>
   <?php elseif ($tab === 'password'): ?>
     <section class="card">
       <h2 style="margin:0 0 6px">Ganti Password Admin</h2>

@@ -11,6 +11,7 @@ $links = [];
 if ($role === 'admin') {
     $links = [
         'branding' => 'Nama Aplikasi & Logo',
+        'warning-sound' => 'Suara Peringatan',
         'auto-detect' => 'Auto-Deteksi Komputer Siswa',
         'password' => 'Ganti Password Admin',
         'materials' => 'Manajemen Materi',

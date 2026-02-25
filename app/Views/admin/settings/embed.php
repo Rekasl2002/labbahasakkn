@@ -10,6 +10,8 @@ $files = $files ?? [];
 $tab = $tab ?? 'auto-detect';
 $materialsTab = $materialsTab ?? 'list';
 $embed = true;
+$warningSoundPath = $warningSoundPath ?? '';
+$warningSoundUrl = $warningSoundUrl ?? '';
 ?>
 
 <header class="pageHead">
@@ -23,6 +25,7 @@ $embed = true;
 
 <div class="settingsTabs">
   <a class="settingsTab <?= $tab === 'branding' ? 'active' : '' ?>" href="/admin/settings?tab=branding&embed=1">Branding</a>
+  <a class="settingsTab <?= $tab === 'warning-sound' ? 'active' : '' ?>" href="/admin/settings?tab=warning-sound&embed=1">Suara Peringatan</a>
   <a class="settingsTab <?= $tab === 'auto-detect' ? 'active' : '' ?>" href="/admin/settings?tab=auto-detect&embed=1">Auto-Deteksi</a>
   <a class="settingsTab <?= $tab === 'password' ? 'active' : '' ?>" href="/admin/settings?tab=password&embed=1">Password</a>
   <a class="settingsTab <?= $tab === 'materials' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list&embed=1">Materi</a>
@@ -30,6 +33,12 @@ $embed = true;
 
 <?php if ($tab === 'branding'): ?>
   <?= view('admin/settings/branding_form', ['settings' => $settings, 'embed' => true]) ?>
+<?php elseif ($tab === 'warning-sound'): ?>
+  <?= view('admin/settings/warning_sound_form', [
+    'warningSoundPath' => $warningSoundPath,
+    'warningSoundUrl' => $warningSoundUrl,
+    'embed' => true,
+  ]) ?>
 <?php elseif ($tab === 'auto-detect'): ?>
   <section class="card">
     <h2 style="margin:0 0 6px">Auto-Deteksi Komputer Siswa</h2>

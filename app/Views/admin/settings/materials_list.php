@@ -28,7 +28,7 @@ $embedQuery = $embed ? '&embed=1' : '';
           <td class="row gap">
             <form method="post" action="/admin/materials/broadcast/<?= (int)$m['id'] ?>">
               <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
-              <button type="submit">Broadcast</button>
+              <button type="submit">Pilih</button>
             </form>
             <a class="btn" href="/admin/settings?tab=materials&mat=edit&edit_id=<?= (int)$m['id'] ?><?= $embedQuery ?>">Edit</a>
             <form method="post" action="/admin/materials/delete/<?= (int)$m['id'] ?>" onsubmit="return confirm('Hapus materi?')">
