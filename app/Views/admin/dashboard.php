@@ -11,7 +11,7 @@ $sessionHistory = $sessionHistory ?? [];
   <?= view('layout/partials/sidebar_right', ['role' => 'admin', 'state' => $state]) ?>
 <?php endif; ?>
 
-<div class="dashboard-center">
+<div class="dashboard-center<?= $activeSession ? ' dashboard-center-with-sidebars' : '' ?>">
 
 <header class="pageHead">
   <div>

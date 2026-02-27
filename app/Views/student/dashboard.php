@@ -5,7 +5,7 @@
 <?= view('layout/partials/sidebar_left', ['role' => 'student']) ?>
 <?= view('layout/partials/sidebar_right', ['role' => 'student']) ?>
 
-<div class="dashboard-center">
+<div class="dashboard-center dashboard-center-with-sidebars">
   <header class="pageHead">
     <div>
       <h1 style="margin:0">Dashboard Siswa</h1>
