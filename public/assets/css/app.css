@@ -131,8 +131,8 @@ body.embed-modal .container{
   max-width:none;
   width:100%;
   margin:0;
-  padding-left:calc(var(--sidebar-left-width) + 8px);
-  padding-right:calc(var(--sidebar-right-width) + 8px);
+  padding-left:135px;
+  padding-right:135px;
 }
 
 /* settings layout */

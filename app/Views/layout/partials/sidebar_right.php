@@ -1,7 +1,7 @@
 <?php
 $role = $role ?? '';
-$roleLabel = $role === 'admin' ? 'Guru' : 'Siswa';
-$userName = $role === 'admin'
+$roleLabel = $role === 'Guru' ? 'Guru' : 'Siswa';
+$userName = $role === 'Guru'
     ? (session('admin_username') ?: 'Guru')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
@@ -30,9 +30,6 @@ $state = $state ?? [];
           <input id="chatInput" placeholder="Ketik pesan..." style="flex:1" autocomplete="off">
           <button id="btnSendChat" type="button">Kirim</button>
         </div>
-
-        <p class="muted tiny" style="margin:10px 0 0">
-          Pesan di sini langsung dikirim ke Guru.
         </p>
       </section>
     </div>
@@ -42,19 +39,14 @@ $state = $state ?? [];
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
         <div class="lab-sidebar-title">Panel Guru</div>
-        <div class="lab-sidebar-sub">Sidebar Kanan • <?= esc($roleLabel) ?></div>
       </div>
       <div class="lab-sidebar-user">
         <div class="name"><?= esc($userName) ?></div>
-        <div class="meta">Chat & Materi</div>
       </div>
       <section class="card">
         <div class="row between wrap gap" style="align-items:flex-end">
           <div>
             <h2 style="margin:0">Chat</h2>
-            <div class="muted tiny" style="margin-top:4px">
-              Kirim pesan ke semua siswa atau ke satu siswa.
-            </div>
           </div>
         </div>
 
@@ -75,19 +67,12 @@ $state = $state ?? [];
           <input id="chatInput" placeholder="Ketik pesan..." style="flex:1" autocomplete="off">
           <button id="btnSendChat" type="button">Kirim</button>
         </div>
-
-        <div class="muted tiny" style="margin-top:8px">
-          Siswa juga bisa kirim pesan langsung ke Guru.
-        </div>
       </section>
 
       <section class="card">
         <div class="row between wrap gap" style="align-items:flex-end">
           <div>
             <h2 style="margin:0">Teks dari Guru</h2>
-            <div class="muted tiny" style="margin-top:4px">
-              Teks/pesan singkat yang ditampilkan ke semua siswa.
-            </div>
           </div>
         </div>
 
@@ -104,16 +89,12 @@ $state = $state ?? [];
           <button id="btnBroadcastText" type="button" class="iconBtn" title="Gunakan teks dari Guru" aria-label="Gunakan teks dari Guru">&#10003;</button>
           <button id="btnClearBroadcastText" type="button" class="iconBtn" title="Tutup atau hapus teks Guru" aria-label="Tutup atau hapus teks Guru">&times;</button>
         </div>
-        <p class="muted tiny" style="margin:8px 0 0">
-          Saat teks ini digunakan, pilihan teks pada materi akan dinonaktifkan sementara.
-        </p>
       </section>
 
       <section class="card">
         <div class="row between wrap gap" style="align-items:flex-end">
           <div>
             <h2 style="margin:0">Materi Aktif</h2>
-            <div class="muted tiny" style="margin-top:4px">Ditampilkan di halaman siswa.</div>
           </div>
           <div class="btnGroup">
             <a class="btn js-open-settings" href="/admin/settings?tab=materials&mat=list">Pilih/Ganti Materi</a>

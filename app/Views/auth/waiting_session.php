@@ -45,7 +45,7 @@
   <div class="row gap wrap" style="margin-top:10px">
     <button type="submit" formaction="/waiting/profile" class="ok">Simpan Profil Terbaru</button>
     <a href="/logout/student" class="btn danger" onclick="return confirm('Keluar dari mode menunggu sesi?');">Logout Siswa</a>
-    <button type="submit">Gabung Lagi</button>
+    <button type="submit">Coba Lagi</button>
   </div>
 </form>
 <?= $this->endSection() ?>

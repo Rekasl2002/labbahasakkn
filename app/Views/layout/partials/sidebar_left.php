@@ -1,8 +1,8 @@
 <?php
 helper('settings');
 $role = $role ?? '';
-$roleLabel = $role === 'admin' ? 'Admin' : 'Siswa';
-$userName = $role === 'admin'
+$roleLabel = $role === 'Guru' ? 'Admin' : 'Siswa';
+$userName = $role === 'Guru'
     ? (session('admin_username') ?: 'Admin')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
@@ -25,7 +25,6 @@ $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
       <section class="card">
         <h2 style="margin:0 0 8px">Teman Sesi</h2>
         <ul id="peersList" class="list"></ul>
-        <p class="muted tiny" style="margin:10px 0 0">Update lewat event polling.</p>
       </section>
     </div>
     <section class="lab-sidebar-audio">
@@ -81,11 +80,9 @@ $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
     <div class="lab-sidebar-inner">
       <div class="lab-sidebar-head">
         <div class="lab-sidebar-title"><?= esc($appName) ?></div>
-        <div class="lab-sidebar-sub">Sidebar Kiri • <?= esc($roleLabel) ?></div>
       </div>
       <div class="lab-sidebar-user">
         <div class="name"><?= esc($userName) ?></div>
-        <div class="meta">Kontrol Admin</div>
       </div>
       <section class="card">
         <h2 style="margin:0 0 6px">Kontrol Cepat</h2>

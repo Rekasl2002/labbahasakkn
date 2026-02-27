@@ -1023,7 +1023,7 @@
       if(remoteAudio && remoteAudio.srcObject && state.mySpeakerOn){
         setAudioStatus('Speaker aktif.');
       }else{
-        setAudioStatus('Speaker siap. (Jika ada audio masuk, bisa langsung terdengar.)');
+        setAudioStatus();
       }
     }else{
       setAudioStatus('Klik "Aktifkan Audio" jika audio belum keluar.');
