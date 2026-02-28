@@ -9,9 +9,6 @@
   <header class="pageHead">
     <div>
       <h1 style="margin:0">Dashboard Siswa</h1>
-      <p class="muted" style="margin:6px 0 0">
-        Materi, chat ke guru, dan voice (WebRTC).
-      </p>
     </div>
   </header>
 
@@ -53,7 +50,6 @@
       <div>
         <h2 style="margin:0">Teks Materi</h2>
         <div class="muted tiny" style="margin-top:4px">
-          Menampilkan teks yang sedang dipilih.
         </div>
       </div>
     </div>
@@ -67,7 +63,6 @@
     <div class="row between wrap gap" style="align-items:flex-end">
       <div>
         <h2 style="margin:0">Materi <span id="materialTitleLabel" class="muted"></span></h2>
-        <div class="muted tiny" style="margin-top:4px">Materi aktif dari guru akan muncul di sini.</div>
       </div>
       <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
     </div>

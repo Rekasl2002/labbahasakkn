@@ -15,10 +15,7 @@ $sessionHistory = $sessionHistory ?? [];
 
 <header class="pageHead">
   <div>
-    <h1 style="margin:0">Admin Dashboard</h1>
-    <p class="muted" style="margin:6px 0 0">
-      Kendalikan sesi, peserta, chat, materi, dan voice (WebRTC).
-    </p>
+    <h1 style="margin:0">Dashboard Guru</h1>
   </div>
 </header>
 
