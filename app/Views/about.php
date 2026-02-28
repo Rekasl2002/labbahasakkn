@@ -38,5 +38,24 @@ $tutorialItems = lab_tutorial_items_for_role($role);
   <?php endif; ?>
 </section>
 
-<?= $this->endSection() ?>
+<footer class="card" style="margin-top:12px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+    <div>
+      <p style="margin:0 0 8px">&copy; 2026 KKN STT Pratama Adi 2025-2026 PPI31 Banjaran</p>
+      <p style="margin:0 0 4px"><strong>Anggota Tim:</strong></p>
+      <p class="muted" style="margin:0 0 8px">Reka Shakiralhamdi Latief, Adhitia Budi Prasetyo, Khabbab Abdurrasyid, Sri Sukmawati, Andini Faradilla Putri</p>
+      <a href="https://github.com/Rekasl2002/labbahasakkn" target="_blank" rel="noopener">GitHub Repository</a>
+    </div>
 
+    <button
+      type="button"
+      class="btn"
+      onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '/'; }"
+      aria-label="Kembali ke halaman sebelumnya"
+    >
+      Kembali
+    </button>
+  </div>
+</footer>
+
+<?= $this->endSection() ?>
