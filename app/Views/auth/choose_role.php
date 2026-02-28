@@ -6,7 +6,11 @@
   <div class="auth-grid">
     <section class="card auth-card">
       <div class="auth-avatar">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#233" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"></circle><path d="M6 20c0-3 3-5 6-5s6 2 6 5"></path></svg>
+        <img
+          src="<?= base_url('assets/img/auth-student.png') ?>"
+          alt="Ikon siswa"
+          class="auth-avatar-img"
+        >
       </div>
       <div class="auth-title">Siswa</div>
 
@@ -40,7 +44,11 @@
 
     <section class="card auth-card">
       <div class="auth-avatar auth-avatar-admin">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18"></path><path d="M8 21h8"></path></svg>
+        <img
+          src="<?= base_url('assets/img/auth-teacher.avif') ?>"
+          alt="Ikon guru"
+          class="auth-avatar-img"
+        >
       </div>
       <div class="auth-title">Guru</div>
       <form method="post" action="/login/admin">

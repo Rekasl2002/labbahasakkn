@@ -1016,21 +1016,27 @@ audio,video{
 .auth-avatar{
   width:112px;
   height:112px;
-  border-radius:50%;
-  border:8px solid #cde9dc;
-  background:#f3fbf7;
+  border-radius:0;
+  border:none;
+  background:transparent;
   display:flex;
   margin:0 auto 14px;
   align-items:center;
   justify-content:center;
 }
 .auth-avatar-admin{
-  border-color:#c8e7e8;
-  background:#eaf8f9;
+  border:none;
+  background:transparent;
 }
 .auth-avatar svg{
   display:block;
   margin:auto;
+}
+.auth-avatar-img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
 }
 .auth-title{
   text-align:center;
