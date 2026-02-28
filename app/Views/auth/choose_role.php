@@ -22,8 +22,8 @@
         </div>
 
         <div class="form-row">
-          <label>Nama Komputer (opsional)</label>
-          <input class="form-input" name="device_label" placeholder="PC-01" value="<?= esc($device_label ?? '') ?>">
+          <label>Nama komputer (opsional)</label>
+          <input class="form-input" name="device_label" placeholder="Komputer-01" value="<?= esc($device_label ?? '') ?>">
         </div>
 
         <?php if (!empty($device_label ?? '')): ?>
@@ -42,21 +42,22 @@
       <div class="auth-avatar auth-avatar-admin">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18"></path><path d="M8 21h8"></path></svg>
       </div>
-      <div class="auth-title">Admin</div>
+      <div class="auth-title">Guru</div>
       <form method="post" action="/login/admin">
         <div class="form-row">
-          <label>Username</label>
+          <label>Nama pengguna</label>
           <input class="form-input" name="username" required value="admin">
         </div>
         <div class="form-row">
-          <label>Password</label>
+          <label>Kata sandi</label>
           <input class="form-input" name="password" type="password" required value="admin123">
         </div>
-        <button class="btn-green" type="submit">Masuk admin</button>
+        <button class="btn-green" type="submit">Masuk sebagai guru</button>
       </form>
-      <p class="muted hint-muted">Default password hanya untuk dev. Ganti setelah jalan.</p>
+      <p class="muted hint-muted">Kata sandi bawaan hanya untuk percobaan. Ubah setelah siap dipakai.</p>
     </section>
 
   </div>
 </div>
 <?= $this->endSection() ?>
+

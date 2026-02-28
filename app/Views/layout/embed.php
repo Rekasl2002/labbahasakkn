@@ -15,13 +15,13 @@
   </main>
 
   <div id="filePreviewModal" class="modal" aria-hidden="true">
-    <div class="modal-dialog modal-preview" role="dialog" aria-modal="true" aria-label="Preview File">
+    <div class="modal-dialog modal-preview" role="dialog" aria-modal="true" aria-label="Pratinjau Berkas">
       <button type="button" class="modal-close" data-close-preview aria-label="Tutup">×</button>
       <div class="modal-preview-head">
-        <div id="filePreviewTitle" class="modal-title">Preview File</div>
-        <a id="filePreviewOpen" class="btn tiny" href="#" target="_blank" rel="noopener">Buka Tab</a>
+        <div id="filePreviewTitle" class="modal-title">Pratinjau Berkas</div>
+        <a id="filePreviewOpen" class="btn tiny" href="#" target="_blank" rel="noopener">Buka Halaman Baru</a>
       </div>
-      <iframe id="filePreviewFrame" title="Preview File" src="about:blank"></iframe>
+      <iframe id="filePreviewFrame" title="Pratinjau Berkas" src="about:blank"></iframe>
     </div>
   </div>
 
@@ -35,7 +35,7 @@
 
       function openPreview(url, title){
         frame.src = url || 'about:blank';
-        if(titleEl) titleEl.textContent = title || 'Preview File';
+        if(titleEl) titleEl.textContent = title || 'Pratinjau Berkas';
         if(openEl){
           if(url){
             openEl.href = url;
@@ -61,7 +61,22 @@
         const trigger = e.target.closest('[data-preview-url]');
         if(trigger){
           e.preventDefault();
-          openPreview(trigger.dataset.previewUrl || '', trigger.dataset.previewTitle || '');
+          const url = trigger.dataset.previewUrl || '';
+          const title = trigger.dataset.previewTitle || '';
+          const canUseParentPreview = window.parent
+            && window.parent !== window
+            && typeof window.parent.__LAB_OPEN_FILE_PREVIEW__ === 'function';
+          if (canUseParentPreview) {
+            try {
+              window.parent.__LAB_OPEN_FILE_PREVIEW__(url, title, {
+                hideSettingsModal: true,
+              });
+              return;
+            } catch (err) {
+              // fallback ke modal lokal jika parent tidak bisa diakses
+            }
+          }
+          openPreview(url, title);
           return;
         }
         if(e.target.closest('[data-close-preview]')){
@@ -92,3 +107,4 @@
   <?php endif; ?>
 </body>
 </html>
+

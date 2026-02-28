@@ -27,7 +27,7 @@ class SessionApi extends BaseController
 
         $active = $this->getActiveSession();
         if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $pm = new ParticipantModel();
@@ -38,7 +38,7 @@ class SessionApi extends BaseController
             ->first();
 
         if (!$me) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         [$presenceState, $presencePage, $presenceReason] = $this->normalizePresenceInput();
@@ -130,3 +130,4 @@ class SessionApi extends BaseController
         return [$presence, $page, $reason];
     }
 }
+

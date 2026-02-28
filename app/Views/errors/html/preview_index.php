@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Preview Halaman Error</title>
+  <title>Pratinjau Halaman Galat</title>
   <style>
     *{box-sizing:border-box}
     body{
@@ -80,18 +80,16 @@
 <body>
   <div class="auth-choose">
     <div class="auth-grid">
-      <section class="card auth-card">
-        <h1 class="auth-title">Preview Halaman Error</h1>
+      <section class="auth-card">
+        <h1 class="auth-title">Pratinjau Halaman Galat</h1>
         <p class="hint-muted">Pilih salah satu halaman di bawah untuk melihat tampilannya.</p>
-        <div class="chip">ENV: <?= esc($envName ?? 'unknown') ?></div>
-
+        <div class="chip">LINGKUNGAN: <?= esc($envName ?? 'unknown') ?></div>
         <ul>
           <?php foreach (($links ?? []) as $link) : ?>
             <li><a href="<?= esc($link['url']) ?>"><?= esc($link['label']) ?></a></li>
           <?php endforeach; ?>
         </ul>
-
-        <p class="muted tiny">Catatan: halaman preview ini hanya tersedia di non-production.</p>
+        <p class="muted tiny">Catatan: halaman pratinjau ini hanya tersedia di lingkungan non-produksi.</p>
       </section>
     </div>
   </div>

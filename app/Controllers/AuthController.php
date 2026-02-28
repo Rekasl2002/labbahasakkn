@@ -193,12 +193,12 @@ class AuthController extends BaseController
         $password = (string) $this->request->getPost('password');
 
         if ($username === '' || $password === '') {
-            return redirect()->back()->with('error', 'Username/password wajib.');
+            return redirect()->back()->with('error', 'Nama pengguna dan kata sandi wajib diisi.');
         }
 
         $admin = (new AdminModel())->where('username', $username)->first();
         if (!$admin || !password_verify($password, $admin['password_hash'])) {
-            return redirect()->back()->with('error', 'Login admin gagal.');
+            return redirect()->back()->with('error', 'Masuk guru gagal.');
         }
 
         session()->set([
@@ -222,7 +222,7 @@ class AuthController extends BaseController
         $deviceLabel = trim((string) $this->request->getPost('device_label'));
 
         if ($studentName === '' || $className === '') {
-            return redirect()->back()->with('error', 'Nama & kelas wajib.');
+            return redirect()->back()->with('error', 'Nama dan kelas wajib diisi.');
         }
 
         return $this->continueStudentLogin($studentName, $className, $deviceLabel);
@@ -456,3 +456,4 @@ class AuthController extends BaseController
         return redirect()->to('/login?logged_out=1')->with('ok', $msg);
     }
 }
+

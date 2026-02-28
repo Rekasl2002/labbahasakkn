@@ -273,11 +273,11 @@
   function syncAudioIndicator(){
     if(!audioIndicatorEl) return;
     if(!hasAnyAudioStream()){
-      setAudioIndicator('idle', 'Audio: standby');
+      setAudioIndicator('idle', 'Audio: menunggu/standby');
       return;
     }
     if(!state.mySpeakerOn){
-      setAudioIndicator('off', 'Audio: dimute');
+      setAudioIndicator('off', 'Audio: dimatikan');
       return;
     }
     if(state.audioUnlocked){
@@ -316,9 +316,9 @@
   function labelForDevice(d, idx){
     const name = (d && d.label) ? d.label : '';
     if(name) return name;
-    if(d.kind === 'audioinput') return `Microphone ${idx+1}`;
+    if(d.kind === 'audioinput') return `Mikrofon ${idx+1}`;
     if(d.kind === 'audiooutput') return `Speaker ${idx+1}`;
-    return `Device ${idx+1}`;
+    return `Perangkat ${idx+1}`;
   }
 
   state.micVolume = readSavedVolume(STORAGE.micVolume, 1);
@@ -368,11 +368,11 @@
   async function refreshDevices(){
     if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices){
       if(selMic){
-        selMic.innerHTML = '<option value="">Browser tidak mendukung pemilihan mic</option>';
+        selMic.innerHTML = '<option value="">Peramban tidak mendukung pemilihan mikrofon</option>';
         selMic.disabled = true;
       }
       if(selSpk){
-        selSpk.innerHTML = '<option value="">Browser tidak mendukung pemilihan speaker</option>';
+        selSpk.innerHTML = '<option value="">Peramban tidak mendukung pemilihan keluaran suara</option>';
         selSpk.disabled = true;
       }
       return;
@@ -392,7 +392,7 @@
 
     const needPermissionHint = !state.devicePermissionAsked;
     if(selMic){
-      const emptyMicText = needPermissionHint ? 'Klik dropdown untuk meminta izin mic' : 'Tidak ada microphone';
+      const emptyMicText = needPermissionHint ? 'Klik daftar pilihan untuk meminta izin mikrofon' : 'Tidak ada mikrofon';
       selMic.innerHTML = inputs.length
         ? inputs.map((d,i)=> `<option value="${esc(d.deviceId)}">${esc(labelForDevice(d,i))}</option>`).join('')
         : `<option value="">${emptyMicText}</option>`;
@@ -401,9 +401,9 @@
 
     const canPickOutput = !!(remoteAudio && typeof remoteAudio.setSinkId === 'function');
     if(selSpk){
-      const emptySpkText = needPermissionHint ? 'Klik dropdown untuk meminta izin mic' : 'Tidak ada speaker';
+      const emptySpkText = needPermissionHint ? 'Klik daftar pilihan untuk meminta izin mikrofon' : 'Tidak ada speaker';
       if(!canPickOutput){
-        selSpk.innerHTML = '<option value="">Browser tidak mendukung pemilihan speaker</option>';
+        selSpk.innerHTML = '<option value="">Perangkat ini belum bisa memilih speaker secara langsung</option>';
         selSpk.disabled = true;
       }else{
         selSpk.innerHTML = outputs.length
@@ -515,7 +515,7 @@
       const tmp = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       if(tmp) tmp.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
     }catch(err){
-      setAudioStatus('Izin mic diperlukan untuk memuat perangkat: ' + (err.message||err));
+      setAudioStatus('Izin mikrofon diperlukan untuk memuat perangkat: ' + (err.message||err));
     }
     refreshDevices();
   }
@@ -524,12 +524,12 @@
     if(rtc.localStream) return rtc.localStream;
 
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error('Browser tidak mendukung getUserMedia');
+      throw new Error('Perangkat ini tidak mendukung akses mikrofon');
     }
 
     if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
-      // getUserMedia umumnya ditolak jika bukan HTTPS (kecuali localhost)
-      throw new Error('Mic butuh HTTPS (atau localhost).');
+      // Akses mikrofon biasanya ditolak jika alamat tidak aman.
+      throw new Error('Mikrofon memerlukan alamat situs yang aman.');
     }
 
     rtc.localStream = await getUserMediaWithSelectedMic();
@@ -554,19 +554,19 @@
   function syncMicBtn(){
     if(!btnMic) return;
     btnMic.classList.toggle('ok', state.myMicOn);
-    btnMic.textContent = state.myMicOn ? 'Mic: ON' : 'Mic: OFF';
+    btnMic.textContent = state.myMicOn ? 'Mikrofon: Hidup' : 'Mikrofon: Mati';
     const locked = !state.allowToggleMic;
     btnMic.disabled = locked;
-    btnMic.title = locked ? 'Mic dikunci guru' : 'Aktif/nonaktif mic kamu';
+    btnMic.title = locked ? 'Mikrofon dikunci guru' : 'Nyalakan/matikan mikrofon kamu';
   }
 
   function syncSpkBtn(){
     if(!btnSpk) return;
     btnSpk.classList.toggle('ok', state.mySpeakerOn);
-    btnSpk.textContent = state.mySpeakerOn ? 'Speaker: ON' : 'Speaker: OFF';
+    btnSpk.textContent = state.mySpeakerOn ? 'Speaker: Hidup' : 'Speaker: Mati';
     const locked = !state.allowToggleSpeaker;
     btnSpk.disabled = locked;
-    btnSpk.title = locked ? 'Speaker dikunci guru' : 'Aktif/nonaktif speaker kamu';
+    btnSpk.title = locked ? 'Speaker dikunci guru' : 'Nyalakan/matikan speaker kamu';
   }
 
   async function syncMyMicFromControl(nextMicOn, msgOn, msgOff){
@@ -581,7 +581,7 @@
         if(msgOn) setAudioStatus(msgOn);
         refreshDevices();
       }catch(err){
-        setAudioStatus('Mic ON, izinkan akses mic di browser: ' + (err.message || err));
+        setAudioStatus('Mikrofon aktif, izinkan akses mikrofon di peramban: ' + (err.message || err));
       }
     }else{
       applyMicState();
@@ -709,9 +709,9 @@
 
           if(state.audioUnlocked && state.mySpeakerOn){
             audioEl.play().catch(()=>{});
-            setAudioStatus('Terhubung (audio aktif).');
+            setAudioStatus('Terhubung (suara aktif).');
           }else{
-            setAudioStatus('Ada audio masuk. Klik "Aktifkan Audio" dulu.');
+            setAudioStatus('Ada suara masuk. Klik "Aktifkan Suara" dulu.');
           }
           syncAudioIndicator();
         }
@@ -935,7 +935,7 @@
         }));
 
         if(state.myMicOn && !rtc.localStream){
-          setAudioStatus('Panggilan masuk. Mic ON tapi izin belum ada: klik tombol Mic untuk mengizinkan.');
+          setAudioStatus('Panggilan masuk. Mikrofon hidup, tetapi izin belum diberikan. Klik tombol Mikrofon untuk memberi izin.');
         }
 
         const answer = await peer.pc.createAnswer();
@@ -1026,7 +1026,7 @@
         setAudioStatus();
       }
     }else{
-      setAudioStatus('Klik "Aktifkan Audio" jika audio belum keluar.');
+      setAudioStatus('Klik "Aktifkan Suara" jika suara belum keluar.');
     }
     syncAudioIndicator();
   }
@@ -1085,7 +1085,7 @@
           renegotiateAllPeers();
           refreshDevices();
         }catch(err){
-          setAudioStatus('Gagal ganti mic: ' + (err.message || err));
+          setAudioStatus('Gagal mengganti mikrofon: ' + (err.message || err));
         }
       }
     });
@@ -1320,23 +1320,23 @@
       const rawPreviewUrl = (file.preview_url_path || '').toString();
       const url = esc(rawUrl);
       const previewUrl = rawPreviewUrl ? esc(rawPreviewUrl) : '';
-      const filename = file.filename || 'file';
+      const filename = file.filename || 'berkas';
       const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
       const coverUrl = getCoverUrl(file);
 
       if(mime.startsWith('audio/')){
         return `<div class="mediaBlock">
           ${renderFileTitle(filename)}
-          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Sampul ${esc(filename)}">` : ''}
           <audio class="mediaLocked" data-student-media="1"${fileIdAttr} src="${url}" style="width:100%" playsinline tabindex="-1"></audio>
-          <div class="muted">Audio dikendalikan oleh guru.</div>
+          <div class="muted">Suara dikendalikan oleh guru.</div>
         </div>`;
       }
       if(mime.startsWith('video/')){
         const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
         return `<div class="mediaBlock">
           ${renderFileTitle(filename)}
-          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Sampul ${esc(filename)}">` : ''}
           <video class="mediaLocked" data-student-media="1"${fileIdAttr}${poster} src="${url}" style="max-width:100%" playsinline tabindex="-1"></video>
           <div class="muted">Video dikendalikan oleh guru.</div>
         </div>`;
@@ -1358,7 +1358,7 @@
         return `<div class="docSimple">
           <div class="fileTitle">${esc(filename)}</div>
           <div class="muted tiny" style="margin-top:8px">
-            Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
+            Pratinjau lokal belum tersedia untuk berkas ini. Buka berkas langsung di halaman baru.
           </div>
           <div style="margin-top:8px">
             <a class="btn tiny" href="${url}" target="_blank">Buka</a>
@@ -1367,7 +1367,7 @@
       }
       return `<div class="mediaBlock">
         ${renderFileTitle(filename)}
-        <div><a href="${url}" target="_blank">Buka file</a></div>
+        <div><a href="${url}" target="_blank">Buka berkas</a></div>
       </div>`;
     };
 
@@ -1441,8 +1441,8 @@
     if(materialViewer.querySelector('.mediaUnlock')) return;
     const box = document.createElement('div');
     box.className = 'mediaUnlock';
-    box.innerHTML = `<div class="muted">Browser membutuhkan izin untuk memutar audio/video.</div>
-      <button class="btn" type="button">Aktifkan Audio/Video</button>`;
+    box.innerHTML = `<div class="muted">Aplikasi ini memerlukan izin untuk memutar suara atau video.</div>
+      <button class="btn" type="button">Aktifkan Suara dan Video</button>`;
     const btn = box.querySelector('button');
     if(btn){
       btn.onclick = async ()=>{
@@ -1523,7 +1523,7 @@
     if(snap && snap.session){
       const isActive = Number(snap.session.is_active || 0) === 1;
       if(!isActive){
-        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman login...');
+        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman masuk...');
         return;
       }
     }
@@ -1597,7 +1597,7 @@
         applyMicState();
         attachLocalTrackToAllPeers();
       }catch(err){
-        setAudioStatus('Mic ON tapi izin gagal: ' + (err.message||err));
+        setAudioStatus('Mikrofon aktif tetapi izin gagal: ' + (err.message||err));
       }
     }
   }
@@ -1660,8 +1660,8 @@
 
         if(p.participant_id === myId){
           const forced = !!p.forced_by_admin;
-          const msgOn = forced ? 'Mic diaktifkan guru.' : 'Mic diaktifkan.';
-          const msgOff = forced ? 'Mic dimatikan guru.' : 'Mic dimatikan.';
+          const msgOn = forced ? 'Mikrofon diaktifkan guru.' : 'Mikrofon diaktifkan.';
+          const msgOff = forced ? 'Mikrofon dimatikan guru.' : 'Mikrofon dimatikan.';
           await syncMyMicFromControl(!!p.mic_on, msgOn, msgOff);
         }
       }
@@ -1671,8 +1671,8 @@
         renderPeers();
         await syncMyMicFromControl(
           !!p.mic_on,
-          'Mic diaktifkan guru.',
-          'Mic dimatikan guru.'
+          'Mikrofon diaktifkan guru.',
+          'Mikrofon dimatikan guru.'
         );
       }
 
@@ -1752,8 +1752,8 @@
       }
 
       if(t === 'session_ended'){
-        appendChat('Info', 'Sesi ditutup oleh guru.');
-        leaveEndedSession('Sesi ditutup oleh guru. Mengarahkan ke halaman login...');
+        appendChat('Informasi', 'Sesi ditutup oleh guru.');
+        leaveEndedSession('Sesi ditutup oleh guru. Mengarahkan ke halaman masuk...');
       }
 
       if(t === 'rtc_signal'){
@@ -1775,7 +1775,7 @@
   if(btnMic){
     btnMic.onclick = async ()=>{
       if(!state.allowToggleMic){
-        setAudioStatus('Mic dikunci guru.');
+        setAudioStatus('Mikrofon dikunci guru.');
         return;
       }
       const r = await post('/api/control/mic/toggle', {});
@@ -1788,15 +1788,15 @@
             await ensureMicStreamFromUserGesture();
             applyMicState();
             attachLocalTrackToAllPeers();
-            setAudioStatus('Mic aktif.');
+            setAudioStatus('Mikrofon aktif.');
             refreshDevices();
           }catch(err){
-            setAudioStatus('Mic ON tapi izin gagal: ' + (err.message||err));
+            setAudioStatus('Mikrofon aktif tetapi izin gagal: ' + (err.message||err));
           }
         }else{
           applyMicState();
           stopLocalStream();
-          setAudioStatus('Mic nonaktif.');
+          setAudioStatus('Mikrofon nonaktif.');
         }
         scheduleVoiceCheck(200);
       }else if(r && r.error){
@@ -1807,7 +1807,7 @@
 
     // Hint jika bukan HTTPS
     if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
-      btnMic.title = 'Mic biasanya butuh HTTPS/localhost';
+      btnMic.title = 'Mikrofon biasanya memerlukan alamat situs yang aman';
     }
   }
 
@@ -1862,7 +1862,7 @@
     onError: function(err){
       const status = Number(err && err.status ? err.status : 0);
       if(status === 401 || status === 403){
-        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman login...');
+        leaveEndedSession('Sesi sudah berakhir. Mengarahkan ke halaman masuk...');
       }
     },
   });
@@ -1889,3 +1889,4 @@
   });
 
 })();
+

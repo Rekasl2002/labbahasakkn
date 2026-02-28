@@ -13,7 +13,7 @@ if ($appNameValue === '') {
 <section class="card">
   <h2 style="margin:0 0 6px">Tampilan</h2>
   <p class="muted tiny" style="margin:0 0 10px">
-    Atur nama aplikasi, logo tampilan, dan ikon tab browser.
+    Atur nama aplikasi, logo tampilan, dan ikon kecil pada halaman web.
   </p>
 
   <div class="brandingPreview">
@@ -22,8 +22,8 @@ if ($appNameValue === '') {
       <img src="<?= esc($branding['logo_url']) ?>" alt="Logo aplikasi saat ini" class="brandingPreviewImage">
     </div>
     <div class="brandingPreviewCard">
-      <div class="brandingPreviewTitle">Ikon Tab Browser Saat Ini</div>
-      <img src="<?= esc($branding['favicon_url']) ?>" alt="Favicon saat ini" class="brandingPreviewImage brandingPreviewImageSmall">
+      <div class="brandingPreviewTitle">Ikon Halaman Web Saat Ini</div>
+      <img src="<?= esc($branding['favicon_url']) ?>" alt="Ikon laman saat ini" class="brandingPreviewImage brandingPreviewImageSmall">
     </div>
   </div>
 
@@ -44,7 +44,7 @@ if ($appNameValue === '') {
       accept=".png,.jpg,.jpeg,.webp,.svg,.ico,image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
     >
 
-    <label>Ubah Ikon untuk Tab Browser</label>
+    <label>Ubah Ikon Halaman Web</label>
     <input
       type="file"
       name="app_favicon"
@@ -52,9 +52,10 @@ if ($appNameValue === '') {
     >
 
     <p class="muted tiny brandingHint">
-      Disarankan ukuran favicon 32x32 atau 64x64 piksel. Format yang didukung: PNG, JPG, WEBP, SVG, ICO (maks 2MB).
+      Disarankan ukuran ikon 32x32 atau 64x64 piksel. Format yang didukung: PNG, JPG, WEBP, SVG, ICO (maksimal 2MB).
     </p>
 
-    <button type="submit" class="ok" style="margin-top:10px">Terapkan Tampilan</button>
+    <button type="submit" class="ok" style="margin-top:10px">Simpan Tampilan</button>
   </form>
 </section>
+

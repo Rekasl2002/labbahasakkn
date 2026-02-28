@@ -15,7 +15,7 @@ $sessionHistory = $sessionHistory ?? [];
 
 <header class="pageHead">
   <div>
-    <h1 style="margin:0">Dashboard Guru</h1>
+    <h1 style="margin:0">Beranda Guru</h1>
   </div>
 </header>
 
@@ -25,7 +25,7 @@ $sessionHistory = $sessionHistory ?? [];
       <div>
         <h2 style="margin:0 0 6px">Sesi belum aktif</h2>
         <p class="muted" style="margin:0">
-          Mulai sesi agar siswa bisa login dan terhubung.
+          Mulai sesi agar siswa bisa masuk.
         </p>
       </div>
     </div>
@@ -53,13 +53,6 @@ $sessionHistory = $sessionHistory ?? [];
       >
       <button type="submit" class="ok">▶ Mulai Sesi</button>
     </form>
-
-    <p class="muted tiny" style="margin:10px 0 0">
-      Batas default 90 menit, bisa diubah sesuai kebutuhan.
-    </p>
-    <p class="muted tiny" style="margin:8px 0 0">
-      Tips: untuk fitur mic/speaker di browser, gunakan HTTPS (atau localhost).
-    </p>
 
   <?php else: ?>
     <div class="row between wrap gap" style="align-items:center">
@@ -103,7 +96,7 @@ $sessionHistory = $sessionHistory ?? [];
 
         <form method="post" action="/admin/session/end" onsubmit="return confirm('Tutup sesi dan buat rekap?')">
           <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
-          <button class="danger" type="submit">■ Tutup Sesi & Rekap</button>
+          <button class="danger" type="submit">■ Tutup Sesi</button>
         </form>
       </div>
     </div>
@@ -134,47 +127,32 @@ $sessionHistory = $sessionHistory ?? [];
 
 <?php if ($activeSession): ?>
   <div style="margin-top:14px">
-    <!-- CENTER: PARTICIPANTS + VOICE -->
+    <!-- CENTER: PARTICIPANTS + SUARA -->
     <section class="card">
       <div class="row between wrap gap" style="align-items:flex-end">
         <div>
           <h2 style="margin:0">Komputer / Peserta</h2>
-          <div class="muted tiny" style="margin-top:4px">
-            Online ditentukan dari presence aktif (ping 2 detik, timeout sekitar 6 detik).
-          </div>
-        </div>
-        <div class="muted tiny" style="text-align:right">
-          Voice: WebRTC (butuh HTTPS / localhost)
         </div>
       </div>
 
       <hr>
 
-      <!-- Voice panel -->
+      <!-- Panel suara -->
       <div class="callBar row between wrap gap" style="align-items:center">
         <div class="row gap wrap" style="align-items:center">
-          <span class="badge">VOICE</span>
-          <span id="callStatus" class="muted" aria-live="polite">Voice room: idle</span>
+          <span class="badge">Audio</span>
+          <span id="callStatus" class="muted" aria-live="polite">Voice Room: menunggu/standby</span>
         </div>
       </div>
 
       <audio id="adminRemoteAudio" class="audioEl" playsinline></audio>
-
-      <div class="muted tiny" style="margin-top:8px">
-        Jika audio tidak keluar: klik “Aktifkan Audio, pastikan “Speaker Admin” ON, dan izin audio di browser tidak diblok.
-      </div>
-
       <hr>
 
       <noscript>
-        <p class="danger">JavaScript wajib aktif untuk polling peserta dan voice.</p>
+        <p class="danger">Fitur skrip peramban wajib aktif agar daftar peserta dan suara berjalan.</p>
       </noscript>
 
       <div id="participantsGrid" class="gridCards"></div>
-
-      <div class="muted tiny" style="margin-top:10px">
-        Tips: jika peserta banyak, gunakan mute mic siswa untuk mengurangi beban audio di perangkat admin.
-      </div>
     </section>
   </div>
 
@@ -185,7 +163,7 @@ $sessionHistory = $sessionHistory ?? [];
     <div>
       <h2 style="margin:0">Riwayat Sesi</h2>
       <div class="muted tiny" style="margin-top:4px">
-        Buka detail untuk melihat rekap sesi pada halaman recap.
+        Buka rincian untuk melihat ringkasan sesi.
       </div>
     </div>
 
@@ -198,7 +176,6 @@ $sessionHistory = $sessionHistory ?? [];
         <table class="table">
           <thead>
             <tr>
-              <th>#</th>
               <th>Nama Sesi</th>
               <th>Status</th>
               <th>Mulai</th>
@@ -224,7 +201,6 @@ $sessionHistory = $sessionHistory ?? [];
               }
               ?>
               <tr>
-                <td><?= (int) ($row['id'] ?? 0) ?></td>
                 <td><?= esc($row['name'] ?: 'Sesi tanpa nama') ?></td>
                 <td>
                   <?php if ($isActive): ?>
@@ -241,6 +217,16 @@ $sessionHistory = $sessionHistory ?? [];
                     <a class="btn tiny" href="/admin/session/<?= (int) ($row['id'] ?? 0) ?>/recap">Detail</a>
                     <a class="btn tiny" href="/admin/session/<?= (int) ($row['id'] ?? 0) ?>/report/excel">Excel</a>
                     <a class="btn tiny" href="/admin/session/<?= (int) ($row['id'] ?? 0) ?>/report/pdf">PDF</a>
+                    <?php if (!$isActive): ?>
+                      <form
+                        method="post"
+                        action="/admin/session/<?= (int) ($row['id'] ?? 0) ?>/delete"
+                        onsubmit="return confirm('Hapus riwayat sesi ini secara permanen? Data peserta, pesan, catatan aktivitas, dan ringkasan akan ikut terhapus.')"
+                      >
+                        <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
+                        <button class="btn tiny danger" type="submit">Hapus</button>
+                      </form>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>
@@ -284,7 +270,7 @@ $sessionHistory = $sessionHistory ?? [];
         if (remain < 0) remain = 0;
 
         if (remainingLabel) {
-          remainingLabel.textContent = `${formatRemaining(remain)} (deadline: ${deadlineRaw})`;
+          remainingLabel.textContent = `${formatRemaining(remain)} (batas waktu: ${deadlineRaw})`;
         }
         if (warningRemaining) {
           warningRemaining.textContent = formatRemaining(remain);
@@ -316,3 +302,4 @@ $sessionHistory = $sessionHistory ?? [];
 </div>
 
 <?= $this->endSection() ?>
+

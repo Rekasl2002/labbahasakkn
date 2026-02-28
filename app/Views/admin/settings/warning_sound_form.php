@@ -8,25 +8,25 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
 <section class="card">
   <h2 style="margin:0 0 6px">Suara Peringatan</h2>
   <p class="muted tiny" style="margin:0 0 10px">
-    Upload suara yang diputar saat Guru menekan tombol "Peringatan + Suara". Jika tidak ada file, sistem memakai bunyi default bawaan.
+    Unggah suara yang diputar saat Guru menekan tombol "Peringatan + Suara". Jika tidak ada berkas, sistem memakai bunyi bawaan.
   </p>
 
   <?php if ($hasWarningSound): ?>
     <div class="muted tiny" style="margin-bottom:6px">Suara saat ini</div>
     <audio controls preload="none" src="<?= esc($warningSoundUrl) ?>" style="width:100%"></audio>
     <div class="muted tiny" style="margin-top:6px">
-      File: <?= esc(basename($warningSoundPath)) ?>
+      Berkas: <?= esc(basename($warningSoundPath)) ?>
     </div>
   <?php else: ?>
-    <div class="muted" style="margin-bottom:10px">Saat ini masih menggunakan suara default bawaan sistem.</div>
+    <div class="muted" style="margin-bottom:10px">Saat ini masih menggunakan suara bawaan sistem.</div>
   <?php endif; ?>
 
   <div class="row gap wrap" style="margin-top:10px">
     <button id="btnPreviewWarningCurrent" class="btn" type="button">Tes Suara yang Dipakai</button>
-    <button id="btnPreviewWarningDefault" class="btn" type="button">Tes Suara Default</button>
+    <button id="btnPreviewWarningDefault" class="btn" type="button">Tes Suara Bawaan</button>
   </div>
   <div id="warningSoundTestInfo" class="muted tiny" style="margin-top:6px">
-    Klik tombol tes untuk mencoba suara peringatan.
+    Klik tombol tes untuk mencoba bunyi peringatan.
   </div>
   <?php if ($hasWarningSound): ?>
     <audio id="warningSoundCurrentAudio" preload="auto" src="<?= esc($warningSoundUrl) ?>"></audio>
@@ -39,7 +39,7 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
     <?php endif; ?>
     <input type="hidden" name="setting_group" value="warning-sound">
 
-    <label>Upload suara baru (opsional)</label>
+    <label>Unggah suara baru (opsional)</label>
     <input
       type="file"
       name="warning_sound_file"
@@ -53,14 +53,14 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
     <button type="submit" class="ok" style="margin-top:10px">Simpan Suara</button>
   </form>
 
-  <form method="post" action="/admin/settings" style="margin-top:8px" onsubmit="return confirm('Kembalikan ke suara default bawaan sistem?')">
+  <form method="post" action="/admin/settings" style="margin-top:8px" onsubmit="return confirm('Kembalikan ke suara bawaan sistem?')">
     <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
     <?php if ($embed): ?>
       <input type="hidden" name="embed" value="1">
     <?php endif; ?>
     <input type="hidden" name="setting_group" value="warning-sound">
     <input type="hidden" name="warning_sound_remove" value="1">
-    <button type="submit" class="danger">Gunakan Suara Default</button>
+    <button type="submit" class="danger">Gunakan Suara Bawaan</button>
   </form>
 
   <hr>
@@ -105,7 +105,7 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
     try{
       const AC = window.AudioContext || window.webkitAudioContext;
       if(!AC){
-        setInfo('Perangkat ini tidak mendukung tes suara default.');
+        setInfo('Perangkat ini tidak mendukung tes suara bawaan.');
         return;
       }
       const ctx = new AC();
@@ -128,13 +128,13 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
       ctx.resume().catch(()=>{});
       beep(0.00, 880, 0.18, 0.22);
       beep(0.22, 660, 0.22, 0.18);
-      setInfo('Memutar suara default.');
+      setInfo('Memutar suara bawaan.');
       setTimeout(()=>{
         ctx.close().catch(()=>{});
-        setInfo('Selesai memutar suara default.');
+        setInfo('Selesai memutar suara bawaan.');
       }, 1000);
     }catch(e){
-      setInfo('Gagal memutar suara default.');
+      setInfo('Gagal memutar suara bawaan.');
     }
   };
 
@@ -148,7 +148,7 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
       const p = currentAudio.play();
       if(p && typeof p.catch === 'function'){
         p.catch(()=>{
-          setInfo('Gagal memutar file. Dipindahkan ke suara default.');
+          setInfo('Gagal memutar berkas. Dialihkan ke suara bawaan.');
           playDefaultTone();
         });
       }
@@ -156,7 +156,7 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
       return;
     }
 
-    setInfo('Belum ada file khusus. Memutar suara default.');
+    setInfo('Belum ada berkas khusus. Memutar suara bawaan.');
     playDefaultTone();
   };
 
@@ -165,9 +165,10 @@ $hasWarningSound = $warningSoundPath !== '' && $warningSoundUrl !== '';
   }
   if(btnDefault){
     btnDefault.addEventListener('click', ()=>{
-      setInfo('Memutar suara default.');
+      setInfo('Memutar suara bawaan.');
       playDefaultTone();
     });
   }
 })();
 </script>
+

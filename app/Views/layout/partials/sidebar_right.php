@@ -1,7 +1,7 @@
 <?php
 $role = $role ?? '';
-$roleLabel = $role === 'Guru' ? 'Guru' : 'Siswa';
-$userName = $role === 'Guru'
+$roleLabel = $role === 'admin' ? 'Guru' : 'Siswa';
+$userName = $role === 'admin'
     ? (session('admin_username') ?: 'Guru')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
@@ -11,42 +11,25 @@ $state = $state ?? [];
 <?php if ($role === 'student'): ?>
   <aside class="lab-sidebar lab-sidebar-right">
     <div class="lab-sidebar-inner">
-      <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title">Panel Komunikasi</div>
-        <div class="lab-sidebar-sub">Sidebar Kanan • <?= esc($roleLabel) ?></div>
-      </div>
-      <div class="lab-sidebar-user">
-        <div class="name"><?= esc($userName) ?></div>
-        <?php if ($userMeta !== ''): ?>
-          <div class="meta"><?= esc($userMeta) ?></div>
-        <?php endif; ?>
-      </div>
       <section class="card">
-        <h2 style="margin:0 0 8px">Chat ke Guru</h2>
+        <h2 style="margin:0 0 8px">Pesan ke Guru</h2>
 
         <div id="chatLog" class="chatLog"></div>
 
         <div class="row gap" style="margin-top:10px; align-items:center">
           <input id="chatInput" placeholder="Ketik pesan..." style="flex:1" autocomplete="off">
-          <button id="btnSendChat" type="button">Kirim</button>
+          <button id="btnSendChat" class="btn" type="button">Kirim</button>
         </div>
-        </p>
       </section>
     </div>
   </aside>
 <?php elseif ($role === 'admin'): ?>
   <aside class="lab-sidebar lab-sidebar-right">
     <div class="lab-sidebar-inner">
-      <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title">Panel Guru</div>
-      </div>
-      <div class="lab-sidebar-user">
-        <div class="name"><?= esc($userName) ?></div>
-      </div>
       <section class="card">
         <div class="row between wrap gap" style="align-items:flex-end">
           <div>
-            <h2 style="margin:0">Chat</h2>
+            <h2 style="margin:0">Pesan</h2>
           </div>
         </div>
 
@@ -65,7 +48,7 @@ $state = $state ?? [];
 
         <div class="row gap" style="margin-top:10px; align-items:center">
           <input id="chatInput" placeholder="Ketik pesan..." style="flex:1" autocomplete="off">
-          <button id="btnSendChat" type="button">Kirim</button>
+          <button id="btnSendChat" class="btn" type="button">Kirim</button>
         </div>
       </section>
 
@@ -96,9 +79,9 @@ $state = $state ?? [];
           <div>
             <h2 style="margin:0">Materi Aktif</h2>
           </div>
-          <div class="btnGroup">
-            <a class="btn js-open-settings" href="/admin/settings?tab=materials&mat=list">Pilih/Ganti Materi</a>
-            <button id="btnRefreshMaterial" class="btn" type="button">↻</button>
+          <div class="btnGroup materialActionGroup">
+            <a class="btn materialSwitchBtn js-open-settings" href="/admin/settings?tab=materials&mat=list">Pilih/Ganti Materi</a>
+            <button id="btnRefreshMaterial" class="btn materialRefreshBtn" type="button" title="Segarkan daftar materi" aria-label="Segarkan daftar materi">↻</button>
           </div>
         </div>
 
@@ -107,3 +90,4 @@ $state = $state ?? [];
     </div>
   </aside>
 <?php endif; ?>
+

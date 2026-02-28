@@ -141,7 +141,7 @@ class AdminController extends BaseController
 
         $tab = (string) $this->request->getGet('tab');
         $tab = $tab !== '' ? $tab : 'auto-detect';
-        $allowedTabs = ['branding', 'warning-sound', 'auto-detect', 'password', 'materials'];
+        $allowedTabs = ['branding', 'warning-sound', 'tutorial', 'auto-detect', 'password', 'materials'];
         $embed = (string) $this->request->getGet('embed') === '1';
 
         $editId = (int) $this->request->getGet('edit_id');
@@ -163,6 +163,9 @@ class AdminController extends BaseController
 
         $warningSoundPath = trim((string) ($settings['warning_sound_path'] ?? ''));
         $warningSoundUrl = $warningSoundPath !== '' ? lab_asset_public_url($warningSoundPath) : '';
+        $tutorialCatalog = lab_tutorial_catalog($settings);
+        $tutorialTeacher = $tutorialCatalog['teacher'] ?? [];
+        $tutorialStudent = $tutorialCatalog['student'] ?? [];
 
         $material = null;
         $files = [];
@@ -206,6 +209,8 @@ class AdminController extends BaseController
             'embed' => $embed,
             'warningSoundPath' => $warningSoundPath,
             'warningSoundUrl' => $warningSoundUrl,
+            'tutorialTeacher' => $tutorialTeacher,
+            'tutorialStudent' => $tutorialStudent,
         ]);
     }
 
@@ -220,6 +225,10 @@ class AdminController extends BaseController
 
         if ($group === 'warning-sound') {
             return $this->saveWarningSoundSettings();
+        }
+
+        if ($group === 'tutorial') {
+            return $this->saveTutorialSettings();
         }
 
         return $this->saveAutoDetectSettings();
@@ -363,7 +372,7 @@ class AdminController extends BaseController
 
         $embed = $this->isEmbedSettingsRequest();
         $target = '/admin/settings?tab=branding' . ($embed ? '&embed=1' : '');
-        return redirect()->to($target)->with('ok', 'Branding aplikasi disimpan.');
+        return redirect()->to($target)->with('ok', 'Tampilan aplikasi disimpan.');
     }
 
     private function saveWarningSoundSettings()
@@ -417,10 +426,102 @@ class AdminController extends BaseController
         $embed = $this->isEmbedSettingsRequest();
         $target = '/admin/settings?tab=warning-sound' . ($embed ? '&embed=1' : '');
         if ($newPath === '') {
-            return redirect()->to($target)->with('ok', 'Suara peringatan dikembalikan ke default.');
+            return redirect()->to($target)->with('ok', 'Suara peringatan dikembalikan ke bawaan.');
         }
 
         return redirect()->to($target)->with('ok', 'Suara peringatan berhasil disimpan.');
+    }
+
+    private function saveTutorialSettings()
+    {
+        helper('settings');
+
+        $current = lab_load_settings();
+        $oldTeacherPath = trim((string) ($current['tutorial_teacher_path'] ?? ''));
+        $oldStudentPath = trim((string) ($current['tutorial_student_path'] ?? ''));
+        $newTeacherPath = $oldTeacherPath;
+        $newStudentPath = $oldStudentPath;
+        $uploadedTeacherPath = '';
+        $uploadedStudentPath = '';
+        $errors = [];
+
+        $resetTeacher = (string) $this->request->getPost('tutorial_teacher_reset') === '1';
+        $resetStudent = (string) $this->request->getPost('tutorial_student_reset') === '1';
+        if ($resetTeacher) {
+            $newTeacherPath = '';
+        }
+        if ($resetStudent) {
+            $newStudentPath = '';
+        }
+
+        $teacherFile = $this->request->getFile('tutorial_teacher_file');
+        if ($teacherFile && (int) $teacherFile->getError() !== UPLOAD_ERR_NO_FILE) {
+            $uploadTeacher = $this->storeTutorialUpload($teacherFile, 'guru');
+            if (!empty($uploadTeacher['error'])) {
+                $errors[] = (string) $uploadTeacher['error'];
+            } elseif (!empty($uploadTeacher['path'])) {
+                $newTeacherPath = (string) $uploadTeacher['path'];
+                $uploadedTeacherPath = $newTeacherPath;
+            }
+        }
+
+        $studentFile = $this->request->getFile('tutorial_student_file');
+        if ($studentFile && (int) $studentFile->getError() !== UPLOAD_ERR_NO_FILE) {
+            $uploadStudent = $this->storeTutorialUpload($studentFile, 'siswa');
+            if (!empty($uploadStudent['error'])) {
+                $errors[] = (string) $uploadStudent['error'];
+            } elseif (!empty($uploadStudent['path'])) {
+                $newStudentPath = (string) $uploadStudent['path'];
+                $uploadedStudentPath = $newStudentPath;
+            }
+        }
+
+        if (!empty($errors)) {
+            if ($uploadedTeacherPath !== '') {
+                $this->deleteManagedTutorialFile($uploadedTeacherPath);
+            }
+            if ($uploadedStudentPath !== '') {
+                $this->deleteManagedTutorialFile($uploadedStudentPath);
+            }
+            return redirect()->back()->with('error', implode(' ', $errors));
+        }
+
+        $ok = lab_save_settings(array_merge($current, [
+            'tutorial_teacher_path' => $newTeacherPath,
+            'tutorial_student_path' => $newStudentPath,
+        ]));
+
+        if (!$ok) {
+            if ($uploadedTeacherPath !== '') {
+                $this->deleteManagedTutorialFile($uploadedTeacherPath);
+            }
+            if ($uploadedStudentPath !== '') {
+                $this->deleteManagedTutorialFile($uploadedStudentPath);
+            }
+            return redirect()->back()->with('error', 'Gagal menyimpan file tutorial.');
+        }
+
+        if (
+            $oldTeacherPath !== ''
+            && $oldTeacherPath !== $newTeacherPath
+            && ($resetTeacher || $uploadedTeacherPath !== '')
+            && $oldTeacherPath !== $newStudentPath
+        ) {
+            $this->deleteManagedTutorialFile($oldTeacherPath);
+        }
+
+        if (
+            $oldStudentPath !== ''
+            && $oldStudentPath !== $newStudentPath
+            && ($resetStudent || $uploadedStudentPath !== '')
+            && $oldStudentPath !== $newTeacherPath
+        ) {
+            $this->deleteManagedTutorialFile($oldStudentPath);
+        }
+
+        $embed = $this->isEmbedSettingsRequest();
+        $target = '/admin/settings?tab=tutorial' . ($embed ? '&embed=1' : '');
+        return redirect()->to($target)->with('ok', 'File tutorial berhasil diperbarui.');
     }
 
     private function isEmbedSettingsRequest(): bool
@@ -551,6 +652,64 @@ class AdminController extends BaseController
         return ['path' => '/uploads/warnings/' . $safeName];
     }
 
+    private function storeTutorialUpload($file, string $kind): array
+    {
+        if (!$file || !$file->isValid()) {
+            return ['error' => 'File tutorial ' . $kind . ' tidak valid.'];
+        }
+
+        $maxBytes = 20 * 1024 * 1024;
+        if ((int) $file->getSize() > $maxBytes) {
+            return ['error' => 'Ukuran file tutorial ' . $kind . ' maksimal 20MB.'];
+        }
+
+        $allowedMimes = [
+            'application/pdf',
+            'application/x-pdf',
+            'application/acrobat',
+            'applications/vnd.pdf',
+            'text/pdf',
+            'text/x-pdf',
+        ];
+
+        $mime = strtolower((string) $file->getClientMimeType());
+        if ($mime !== '' && !in_array($mime, $allowedMimes, true)) {
+            return ['error' => 'Format file tutorial ' . $kind . ' harus PDF.'];
+        }
+
+        $ext = strtolower((string) $file->getClientExtension());
+        if ($ext === '') {
+            $ext = strtolower((string) $file->guessExtension());
+        }
+        if ($ext === '') {
+            $ext = 'pdf';
+        }
+        if ($ext !== 'pdf') {
+            return ['error' => 'Ekstensi file tutorial ' . $kind . ' harus .pdf.'];
+        }
+
+        $dir = ROOTPATH . 'public/uploads/tutorials';
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            return ['error' => 'Folder upload tutorial tidak dapat dibuat.'];
+        }
+
+        try {
+            $token = bin2hex(random_bytes(6));
+        } catch (\Throwable $e) {
+            $token = preg_replace('/[^a-zA-Z0-9]/', '', uniqid('', true));
+        }
+
+        $safeName = $kind . '-tutorial-' . date('YmdHis') . '-' . $token . '.pdf';
+
+        try {
+            $file->move($dir, $safeName, true);
+        } catch (\Throwable $e) {
+            return ['error' => 'Upload tutorial ' . $kind . ' gagal diproses.'];
+        }
+
+        return ['path' => '/uploads/tutorials/' . $safeName];
+    }
+
     private function deleteManagedBrandingFile(string $path): void
     {
         $path = trim($path);
@@ -577,6 +736,19 @@ class AdminController extends BaseController
         }
     }
 
+    private function deleteManagedTutorialFile(string $path): void
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/uploads/tutorials/')) {
+            return;
+        }
+
+        $filePath = ROOTPATH . 'public' . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (is_file($filePath)) {
+            @unlink($filePath);
+        }
+    }
+
     public function updatePassword()
     {
         $current = (string) $this->request->getPost('current_password');
@@ -584,26 +756,26 @@ class AdminController extends BaseController
         $confirm = (string) $this->request->getPost('confirm_password');
 
         if ($current === '' || $new === '' || $confirm === '') {
-            return redirect()->back()->with('error', 'Semua field password wajib diisi.');
+            return redirect()->back()->with('error', 'Semua kolom kata sandi wajib diisi.');
         }
 
         if ($new !== $confirm) {
-            return redirect()->back()->with('error', 'Konfirmasi password tidak cocok.');
+            return redirect()->back()->with('error', 'Konfirmasi kata sandi tidak cocok.');
         }
 
         if (strlen($new) < 6) {
-            return redirect()->back()->with('error', 'Password baru minimal 6 karakter.');
+            return redirect()->back()->with('error', 'Kata sandi baru minimal 6 karakter.');
         }
 
         $adminId = (int) session()->get('admin_id');
         $admin = (new AdminModel())->find($adminId);
         if (!$admin || !password_verify($current, $admin['password_hash'])) {
-            return redirect()->back()->with('error', 'Password sekarang salah.');
+            return redirect()->back()->with('error', 'Kata sandi saat ini salah.');
         }
 
         $hash = password_hash($new, PASSWORD_DEFAULT);
         if (!$hash) {
-            return redirect()->back()->with('error', 'Gagal memproses password.');
+            return redirect()->back()->with('error', 'Gagal memproses kata sandi.');
         }
 
         (new AdminModel())->update($adminId, [
@@ -612,7 +784,7 @@ class AdminController extends BaseController
 
         $embed = (string) $this->request->getPost('embed') === '1' || (string) $this->request->getGet('embed') === '1';
         $target = '/admin/settings?tab=password' . ($embed ? '&embed=1' : '');
-        return redirect()->to($target)->with('ok', 'Password admin berhasil diubah.');
+        return redirect()->to($target)->with('ok', 'Kata sandi guru berhasil diubah.');
     }
 
     public function startSession()
@@ -705,6 +877,51 @@ class AdminController extends BaseController
         $this->closeSession($active, 'manual');
 
         return $this->recap((int) $active['id']);
+    }
+
+    public function deleteSession(int $sessionId = 0)
+    {
+        if ($sessionId <= 0) {
+            return redirect()->to('/admin')->with('error', 'Sesi tidak valid atau tidak ditemukan.');
+        }
+
+        $sessionModel = new SessionModel();
+        $session = $sessionModel->find($sessionId);
+        if (!$session) {
+            return redirect()->to('/admin')->with('error', 'Sesi tidak valid atau tidak ditemukan.');
+        }
+
+        if ((int) ($session['is_active'] ?? 0) === 1) {
+            return redirect()->to('/admin')->with('error', 'Sesi aktif tidak bisa dihapus. Tutup sesi terlebih dahulu.');
+        }
+
+        $db = db_connect();
+        $db->transStart();
+
+        (new ParticipantModel())
+            ->where('session_id', $sessionId)
+            ->delete();
+
+        (new MessageModel())
+            ->where('session_id', $sessionId)
+            ->delete();
+
+        (new EventModel())
+            ->where('session_id', $sessionId)
+            ->delete();
+
+        (new SessionStateModel())
+            ->where('session_id', $sessionId)
+            ->delete();
+
+        $sessionModel->delete($sessionId);
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return redirect()->to('/admin')->with('error', 'Gagal menghapus riwayat sesi.');
+        }
+
+        return redirect()->to('/admin')->with('ok', 'Riwayat sesi berhasil dihapus permanen.');
     }
 
     private function buildRecapData(array $session): array
@@ -859,3 +1076,4 @@ class AdminController extends BaseController
         }
     }
 }
+

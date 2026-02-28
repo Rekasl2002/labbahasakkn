@@ -2,10 +2,10 @@
 
 use CodeIgniter\CLI\CLI;
 
-// The main Exception
+// Galat utama
 CLI::write('[' . $exception::class . ']', 'light_gray', 'red');
 CLI::write($message);
-CLI::write('at ' . CLI::color(clean_path($exception->getFile()) . ':' . $exception->getLine(), 'green'));
+CLI::write('di ' . CLI::color(clean_path($exception->getFile()) . ':' . $exception->getLine(), 'green'));
 CLI::newLine();
 
 $last = $exception;
@@ -13,19 +13,19 @@ $last = $exception;
 while ($prevException = $last->getPrevious()) {
     $last = $prevException;
 
-    CLI::write('  Caused by:');
+    CLI::write('  Disebabkan oleh:');
     CLI::write('  [' . $prevException::class . ']', 'red');
     CLI::write('  ' . $prevException->getMessage());
-    CLI::write('  at ' . CLI::color(clean_path($prevException->getFile()) . ':' . $prevException->getLine(), 'green'));
+    CLI::write('  di ' . CLI::color(clean_path($prevException->getFile()) . ':' . $prevException->getLine(), 'green'));
     CLI::newLine();
 }
 
-// The backtrace
+// Jejak error
 if (defined('SHOW_DEBUG_BACKTRACE') && SHOW_DEBUG_BACKTRACE) {
     $backtraces = $last->getTrace();
 
     if ($backtraces) {
-        CLI::write('Backtrace:', 'green');
+        CLI::write('Jejak:', 'green');
     }
 
     foreach ($backtraces as $i => $error) {

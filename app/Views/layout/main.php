@@ -16,6 +16,26 @@
     <?= $this->renderSection('content') ?>
   </main>
 
+  <script>
+    (function () {
+      function syncSidebarBodyClass() {
+        const body = document.body;
+        if (!body) return;
+
+        const hasLeft = !!document.querySelector('.lab-sidebar-left');
+        const hasRight = !!document.querySelector('.lab-sidebar-right');
+
+        body.classList.toggle('has-sidebars', hasLeft && hasRight);
+        body.classList.toggle('has-left-sidebar', hasLeft && !hasRight);
+      }
+
+      syncSidebarBodyClass();
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', syncSidebarBodyClass, { once: true });
+      }
+    })();
+  </script>
+
   <div id="settingsModal" class="modal" aria-hidden="true">
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-label="Pengaturan">
       <button type="button" class="modal-close" data-close-settings aria-label="Tutup">×</button>
@@ -24,13 +44,13 @@
   </div>
 
   <div id="filePreviewModal" class="modal" aria-hidden="true">
-    <div class="modal-dialog modal-preview" role="dialog" aria-modal="true" aria-label="Preview File">
+    <div class="modal-dialog modal-preview" role="dialog" aria-modal="true" aria-label="Pratinjau Berkas">
       <button type="button" class="modal-close" data-close-preview aria-label="Tutup">×</button>
       <div class="modal-preview-head">
-        <div id="filePreviewTitle" class="modal-title">Preview File</div>
-        <a id="filePreviewOpen" class="btn tiny" href="#" target="_blank" rel="noopener">Buka Tab</a>
+        <div id="filePreviewTitle" class="modal-title">Pratinjau Berkas</div>
+        <a id="filePreviewOpen" class="btn tiny" href="#" target="_blank" rel="noopener">Buka Halaman Baru</a>
       </div>
-      <iframe id="filePreviewFrame" title="Preview File" src="about:blank"></iframe>
+      <iframe id="filePreviewFrame" title="Pratinjau Berkas" src="about:blank"></iframe>
     </div>
   </div>
 
@@ -57,6 +77,8 @@
         modal.classList.add('open');
         modal.setAttribute('aria-hidden','false');
         document.body.classList.add('modal-open');
+        modal.style.visibility = '';
+        delete modal.dataset.previewSuspended;
       }
 
       function closeModal(){
@@ -64,6 +86,8 @@
         modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('modal-open');
         frame.src = 'about:blank';
+        modal.style.visibility = '';
+        delete modal.dataset.previewSuspended;
       }
 
       document.addEventListener('click', function(e){
@@ -96,10 +120,20 @@
       if(!modal || !frame) return;
       const titleEl = document.getElementById('filePreviewTitle');
       const openEl = document.getElementById('filePreviewOpen');
+      const settingsModal = document.getElementById('settingsModal');
 
-      function openPreview(url, title){
+      function openPreview(url, title, options){
+        const opts = options || {};
+        if(
+          opts.hideSettingsModal
+          && settingsModal
+          && settingsModal.classList.contains('open')
+        ){
+          settingsModal.dataset.previewSuspended = '1';
+          settingsModal.style.visibility = 'hidden';
+        }
         frame.src = url || 'about:blank';
-        if(titleEl) titleEl.textContent = title || 'Preview File';
+        if(titleEl) titleEl.textContent = title || 'Pratinjau Berkas';
         if(openEl){
           if(url){
             openEl.href = url;
@@ -119,7 +153,21 @@
         modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('modal-open');
         frame.src = 'about:blank';
+        if(
+          settingsModal
+          && settingsModal.dataset.previewSuspended === '1'
+        ){
+          settingsModal.style.visibility = '';
+          delete settingsModal.dataset.previewSuspended;
+        }
       }
+
+      window.__LAB_OPEN_FILE_PREVIEW__ = function(url, title, options){
+        openPreview(url, title, options || {});
+      };
+      window.__LAB_CLOSE_FILE_PREVIEW__ = function(){
+        closePreview();
+      };
 
       document.addEventListener('click', function(e){
         const trigger = e.target.closest('[data-preview-url]');
@@ -156,3 +204,4 @@
   <?php endif; ?>
 </body>
 </html>
+

@@ -29,7 +29,7 @@ class RtcApi extends BaseController
     {
         // 0) Only allow POST (optional but recommended)
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         $isAdmin = (bool) session()->get('admin_id');
@@ -37,7 +37,7 @@ class RtcApi extends BaseController
 
         // 1) Basic auth: must be admin OR logged-in participant
         if (!$isAdmin && !$participantId) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         // 2) Inputs
@@ -59,24 +59,24 @@ class RtcApi extends BaseController
         // 3) Validate signal_type
         $allowedSignal = ['offer', 'answer', 'candidate', 'hangup'];
         if (!in_array($signalType, $allowedSignal, true)) {
-            return $this->json(['ok' => false, 'error' => 'Invalid signal_type'], 400);
+            return $this->json(['ok' => false, 'error' => 'signal_type tidak valid'], 400);
         }
 
         // 4) Validate to_type
         $allowedTo = ['admin', 'participant'];
         if (!in_array($toType, $allowedTo, true)) {
-            return $this->json(['ok' => false, 'error' => 'Invalid to_type'], 400);
+            return $this->json(['ok' => false, 'error' => 'to_type tidak valid'], 400);
         }
 
         // 5) Validate call_id (avoid weird payload)
         if ($callId === '' || strlen($callId) > 80) {
-            return $this->json(['ok' => false, 'error' => 'Invalid call_id'], 400);
+            return $this->json(['ok' => false, 'error' => 'call_id tidak valid'], 400);
         }
 
         // optional strict pattern (allow uuid-ish / token)
         // If you want to be more permissive, you can comment this block.
         if (!preg_match('/^[a-zA-Z0-9\-\_\.]+$/', $callId)) {
-            return $this->json(['ok' => false, 'error' => 'Invalid call_id format'], 400);
+            return $this->json(['ok' => false, 'error' => 'Format call_id tidak valid'], 400);
         }
 
         // 6) Decode data JSON (must be JSON object)
@@ -84,13 +84,13 @@ class RtcApi extends BaseController
 
         // optional: limit payload size (candidate can get big)
         if ($dataRaw !== '' && strlen($dataRaw) > 65000) {
-            return $this->json(['ok' => false, 'error' => 'Data too large'], 413);
+            return $this->json(['ok' => false, 'error' => 'Data terlalu besar'], 413);
         }
 
         if ($dataRaw !== '') {
             $decoded = json_decode($dataRaw, true);
             if (!is_array($decoded)) {
-                return $this->json(['ok' => false, 'error' => 'Invalid data (must be JSON object)'], 400);
+                return $this->json(['ok' => false, 'error' => 'Data tidak valid (harus objek JSON)'], 400);
             }
             $data = $decoded;
         }
@@ -98,46 +98,46 @@ class RtcApi extends BaseController
         // 7) Determine session_id
         $sessionId = $this->resolveSessionId($isAdmin);
         if ($sessionId <= 0) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
         if (!$isAdmin) {
             $active = $this->getActiveSession();
             if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
-                return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+                return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
             }
         }
 
         // 8) Optional: throttle / rate limit signaling
         // Candidate events can spam DB. Keep limit generous.
         if (!$this->allowRate($isAdmin, $participantId, $signalType)) {
-            return $this->json(['ok' => false, 'error' => 'Too many requests'], 429);
+            return $this->json(['ok' => false, 'error' => 'Terlalu banyak permintaan'], 429);
         }
 
         // 9) Security: validate student -> participant
         if (!$isAdmin && $toType === 'participant') {
             if ($toParticipantId <= 0) {
-                return $this->json(['ok' => false, 'error' => 'to_participant_id required'], 400);
+                return $this->json(['ok' => false, 'error' => 'to_participant_id wajib diisi'], 400);
             }
             if ($toParticipantId === $participantId) {
-                return $this->json(['ok' => false, 'error' => 'Cannot signal self'], 400);
+                return $this->json(['ok' => false, 'error' => 'Tidak bisa mengirim sinyal ke diri sendiri'], 400);
             }
         }
 
         // 10) Validate sender participant is in session (anti spoof)
         if (!$isAdmin) {
             if (!$this->participantInSession($participantId, $sessionId)) {
-                return $this->json(['ok' => false, 'error' => 'Participant not in session'], 403);
+                return $this->json(['ok' => false, 'error' => 'Peserta tidak ada dalam sesi ini'], 403);
             }
         }
 
         // 11) Validate target participant (admin/student -> participant)
         if ($toType === 'participant') {
             if ($toParticipantId <= 0) {
-                return $this->json(['ok' => false, 'error' => 'to_participant_id required'], 400);
+                return $this->json(['ok' => false, 'error' => 'to_participant_id wajib diisi'], 400);
             }
 
             if (!$this->participantInSession($toParticipantId, $sessionId)) {
-                return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+                return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
             }
         }
 
@@ -170,7 +170,7 @@ class RtcApi extends BaseController
         }
 
         // should never reach here
-        return $this->json(['ok' => false, 'error' => 'Invalid to_type'], 400);
+        return $this->json(['ok' => false, 'error' => 'to_type tidak valid'], 400);
     }
 
     /**

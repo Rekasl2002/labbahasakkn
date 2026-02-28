@@ -8,7 +8,7 @@
 <div class="dashboard-center dashboard-center-with-sidebars">
   <header class="pageHead">
     <div>
-      <h1 style="margin:0">Dashboard Siswa</h1>
+      <h1 style="margin:0">Beranda Siswa</h1>
     </div>
   </header>
 
@@ -26,25 +26,6 @@
   </div>
 
   <!-- CENTER: VOICE -->
-  <section class="card" style="margin-top:14px">
-    <h2 style="margin:0">Voice / Speaker</h2>
-
-
-
-    <audio id="remoteAudio" class="audioEl" playsinline></audio>
-
-    <div class="muted tiny" style="margin-top:8px">
-      Jika tidak bunyi: klik “Aktifkan Audio” agar browser meminta izin audio, lalu cek apakah speaker kamu dimute guru.
-      Mic/speaker bisa dikunci oleh guru.
-      <br>
-      Catatan: mic/speaker WebRTC butuh HTTPS (atau localhost).
-    </div>
-
-    <noscript>
-      <p class="danger">JavaScript wajib aktif untuk voice dan polling.</p>
-    </noscript>
-  </section>
-
   <section class="card" style="margin-top:14px">
     <div class="row between wrap gap" style="align-items:flex-end">
       <div>
@@ -64,7 +45,7 @@
       <div>
         <h2 style="margin:0">Materi <span id="materialTitleLabel" class="muted"></span></h2>
       </div>
-      <button id="btnRefreshMaterial" class="btn" type="button">↻ Refresh</button>
+      <button id="btnRefreshMaterial" class="btn" type="button">↻ Muat Ulang</button>
     </div>
 
     <div id="materialViewer" class="materialViewer muted" style="margin-top:10px">
@@ -83,3 +64,4 @@
 </div>
 
 <?= $this->endSection() ?>
+

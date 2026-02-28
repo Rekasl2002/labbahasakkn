@@ -112,7 +112,7 @@ class EventApi extends BaseController
     {
         // Only GET (biar konsisten dan gampang di-cache-control)
         if (strtoupper($this->request->getMethod()) !== 'GET') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         $since = (int) $this->request->getGet('since');
@@ -125,7 +125,7 @@ class EventApi extends BaseController
 
         // Harus login admin atau siswa
         if (!$isAdmin && $participantId <= 0) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSessionRaw();
@@ -157,14 +157,14 @@ class EventApi extends BaseController
 
         if (!$isAdmin && $sessionId <= 0) {
             $this->clearStudentAuth();
-            return $this->jsonNoStore(['ok' => false, 'error' => 'Session ended'], 401);
+            return $this->jsonNoStore(['ok' => false, 'error' => 'Sesi sudah berakhir'], 401);
         }
 
         if (!$isAdmin) {
             $isCurrentSessionActive = $active && (int) ($active['id'] ?? 0) === $sessionId;
             if (!$isCurrentSessionActive) {
                 $this->clearStudentAuth();
-                return $this->jsonNoStore(['ok' => false, 'error' => 'Session ended'], 401);
+                return $this->jsonNoStore(['ok' => false, 'error' => 'Sesi sudah berakhir'], 401);
             }
         }
 
@@ -191,7 +191,7 @@ class EventApi extends BaseController
 
             if (!$me || (int) $me['session_id'] !== $sessionId) {
                 $this->clearStudentAuth();
-                return $this->jsonNoStore(['ok' => false, 'error' => 'Invalid session'], 401);
+                return $this->jsonNoStore(['ok' => false, 'error' => 'Sesi tidak valid'], 401);
             }
         }
 
@@ -312,3 +312,4 @@ class EventApi extends BaseController
     }
 
 }
+

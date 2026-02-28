@@ -71,7 +71,7 @@ $normalizeText = function ($value, string $fallback = ''): string {
   return $fallback;
 };
 
-$appName = $settingValue('app_name', 'SIB-K', 'general');
+$appName = $settingValue('app_name', 'Lab Bahasa', 'general');
 $faviconPath = $settingValue('favicon_path', 'assets/images/favicon.ico', 'branding');
 $faviconUrl = $baseUrl($faviconPath);
 
@@ -82,8 +82,8 @@ if ($httpCode <= 0) {
 }
 
 $errorType = $normalizeText(
-  $type ?? ($exceptionObj ? get_class($exceptionObj) : 'Exception'),
-  'Exception'
+  $type ?? ($exceptionObj ? get_class($exceptionObj) : 'Galat'),
+  'Galat'
 );
 
 $headingText = $normalizeText(
@@ -101,7 +101,7 @@ $messageText = $normalizeText(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= esc($appName) ?> - Exception</title>
+  <title><?= esc($appName) ?> - Galat</title>
   <link rel="icon" href="<?= esc($faviconUrl) ?>" type="image/x-icon">
   <style>
     *{box-sizing:border-box}
@@ -211,10 +211,10 @@ $messageText = $normalizeText(
     <div class="auth-grid">
       <section class="card auth-card">
         <div class="auth-avatar">500</div>
-        <div class="chip-wrap"><span class="chip">HTTP <?= esc((string) $httpCode) ?></span></div>
+        <div class="chip-wrap"><span class="chip">Kode Galat <?= esc((string) $httpCode) ?></span></div>
         <h1 class="auth-title"><?= esc($headingText) ?></h1>
         <p class="hint-muted"><?= esc(strip_tags($messageText)) ?></p>
-        <p class="muted tiny">Jenis error: <?= esc($errorType) ?></p>
+        <p class="muted tiny">Jenis galat: <?= esc($errorType) ?></p>
 
         <div class="action-row">
           <a class="btn-green" href="<?= esc($baseUrl('/')) ?>">Ke Beranda</a>

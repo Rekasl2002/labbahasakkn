@@ -32,7 +32,7 @@ class MaterialController extends BaseController
         $textItems = (string) $this->request->getPost('text_items');
 
         if ($title === '' || !in_array($type, ['text', 'file', 'folder'], true)) {
-            return redirect()->back()->with('error', 'Title & type wajib.');
+            return redirect()->back()->with('error', 'Judul dan jenis wajib diisi.');
         }
 
         $materialModel = new MaterialModel();
@@ -48,10 +48,10 @@ class MaterialController extends BaseController
         if ($type === 'file') {
             $file = $this->request->getFile('file');
             if (!$file || !$file->isValid()) {
-                return redirect()->back()->with('error', 'File upload gagal.');
+                return redirect()->back()->with('error', 'Unggah berkas gagal.');
             }
             if ($file->getSize() > 50 * 1024 * 1024) {
-                return redirect()->back()->with('error', 'Max file 50MB (MVP).');
+                return redirect()->back()->with('error', 'Ukuran berkas maksimal 50MB.');
             }
 
             $this->storeMaterialFile($id, $file, 1);
@@ -64,7 +64,7 @@ class MaterialController extends BaseController
                 foreach ($files as $file) {
                     if (!$file || !$file->isValid()) continue;
                     if ($file->getSize() > 50 * 1024 * 1024) {
-                        return redirect()->back()->with('error', 'Max file 50MB (MVP).');
+                        return redirect()->back()->with('error', 'Ukuran berkas maksimal 50MB.');
                     }
                 }
                 foreach ($files as $file) {
@@ -94,7 +94,7 @@ class MaterialController extends BaseController
         $textItems = (string) $this->request->getPost('text_items');
 
         if ($title === '' || !in_array($type, ['text', 'file', 'folder'], true)) {
-            return redirect()->back()->with('error', 'Title & type wajib.');
+            return redirect()->back()->with('error', 'Judul dan jenis wajib diisi.');
         }
 
         $materialModel->update($id, [
@@ -107,7 +107,7 @@ class MaterialController extends BaseController
         if ($type === 'text') {
             $this->deleteAllMaterialFiles($id);
             return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
-                ->with('ok', 'Materi berhasil diedit.');
+                ->with('ok', 'Materi berhasil diperbarui.');
         }
 
         // optional: upload file baru (single)
@@ -119,7 +119,7 @@ class MaterialController extends BaseController
             $file = $this->request->getFile('file');
             if ($file && $file->isValid()) {
                 if ($file->getSize() > 50 * 1024 * 1024) {
-                    return redirect()->back()->with('error', 'Max file 50MB (MVP).');
+                    return redirect()->back()->with('error', 'Ukuran berkas maksimal 50MB.');
                 }
                 $this->deleteAllMaterialFiles($id);
                 $this->storeMaterialFile($id, $file, 1);
@@ -153,7 +153,7 @@ class MaterialController extends BaseController
                 foreach ($files as $file) {
                     if (!$file || !$file->isValid()) continue;
                     if ($file->getSize() > 50 * 1024 * 1024) {
-                        return redirect()->back()->with('error', 'Max file 50MB (MVP).');
+                        return redirect()->back()->with('error', 'Ukuran berkas maksimal 50MB.');
                     }
                 }
                 foreach ($files as $file) {
@@ -165,7 +165,7 @@ class MaterialController extends BaseController
         }
 
         return redirect()->to('/admin/settings?tab=materials&mat=list' . $this->embedQuery())
-            ->with('ok', 'Materi berhasil diedit.');
+            ->with('ok', 'Materi berhasil diperbarui.');
     }
 
     public function delete(int $id)
@@ -195,9 +195,9 @@ class MaterialController extends BaseController
         ]);
 
         if ($this->embedQuery() !== '') {
-            return redirect()->to('/admin/settings?tab=materials&mat=list&embed=1')->with('ok', 'Materi dibroadcast.');
+            return redirect()->to('/admin/settings?tab=materials&mat=list&embed=1')->with('ok', 'Materi berhasil ditampilkan.');
         }
-        return redirect()->to('/admin')->with('ok', 'Materi dibroadcast.');
+        return redirect()->to('/admin')->with('ok', 'Materi berhasil ditampilkan.');
     }
 
     private function embedQuery(): string
@@ -410,3 +410,4 @@ class MaterialController extends BaseController
         return '/uploads/materials/covers/' . $coverName;
     }
 }
+

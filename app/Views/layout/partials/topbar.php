@@ -15,13 +15,14 @@ $logoUrl = $branding['logo_url'] ?? base_url('favicon.ico');
     <a href="/about">Tentang</a>
     <?php if (session('admin_id')): ?>
       <a href="/admin/settings?tab=auto-detect" class="js-open-settings">Pengaturan</a>
-      <a href="/logout">Logout</a>
+      <a href="/logout">Keluar</a>
     <?php elseif (session('participant_id')): ?>
       <a href="/student/settings?tab=general" class="js-open-settings">Pengaturan</a>
-      <a href="/logout/student" onclick="return confirm('Keluar dari sesi siswa? Data siswa pada sesi aktif akan dihapus.');">Logout Siswa</a>
+      <a href="/logout/student" onclick="return confirm('Keluar dari sesi siswa? Data siswa pada sesi aktif akan dihapus.');">Keluar Siswa</a>
     <?php elseif (session('student_waiting')): ?>
       <a href="/student/settings?tab=general" class="js-open-settings">Pengaturan</a>
       <a href="/logout/student" onclick="return confirm('Keluar dari mode menunggu sesi?');">Keluar</a>
     <?php endif; ?>
   </nav>
 </header>
+

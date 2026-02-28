@@ -40,8 +40,8 @@
     const broadcastInput = document.getElementById('broadcastText');
     const btnBroadcast = document.getElementById('btnBroadcastText');
     const btnClearBroadcast = document.getElementById('btnClearBroadcastText');
-    const chkAllowStudentMic = document.getElementById('chkAllowStudentMic');
-    const chkAllowStudentSpk = document.getElementById('chkAllowStudentSpk');
+    const btnAllowStudentMic = document.getElementById('btnAllowStudentMic');
+    const btnAllowStudentSpk = document.getElementById('btnAllowStudentSpk');
     const matBox = document.getElementById('currentMaterialBox');
     const btnRefreshMaterial = document.getElementById('btnRefreshMaterial');
 
@@ -179,11 +179,11 @@
   function syncAudioIndicator(){
     if(!adminAudioIndicator) return;
     if(!hasAnyAudioStream()){
-      setAudioIndicator('idle', 'Audio: standby');
+      setAudioIndicator('idle', 'Audio: menunggu/standby');
       return;
     }
     if(!state.adminSpeakerOn){
-      setAudioIndicator('off', 'Audio: dimute');
+      setAudioIndicator('off', 'Audio: dimatikan');
       return;
     }
     if(state.audioUnlocked){
@@ -194,8 +194,27 @@
   }
 
   function syncLockUI(){
-    if(chkAllowStudentMic) chkAllowStudentMic.checked = !!state.allowStudentMic;
-    if(chkAllowStudentSpk) chkAllowStudentSpk.checked = !!state.allowStudentSpeaker;
+    if(btnAllowStudentMic){
+      const micAllowed = !!state.allowStudentMic;
+      btnAllowStudentMic.classList.toggle('ok', micAllowed);
+      btnAllowStudentMic.classList.toggle('danger', !micAllowed);
+      btnAllowStudentMic.textContent = micAllowed ? '🎙️ Mikrofon Siswa: Boleh' : '🎙️ Mikrofon Siswa: Dikunci';
+      btnAllowStudentMic.title = micAllowed
+        ? 'Klik untuk mengunci pengaturan mikrofon siswa'
+        : 'Klik untuk membuka pengaturan mikrofon siswa';
+      btnAllowStudentMic.setAttribute('aria-pressed', micAllowed ? 'true' : 'false');
+    }
+
+    if(btnAllowStudentSpk){
+      const speakerAllowed = !!state.allowStudentSpeaker;
+      btnAllowStudentSpk.classList.toggle('ok', speakerAllowed);
+      btnAllowStudentSpk.classList.toggle('danger', !speakerAllowed);
+      btnAllowStudentSpk.textContent = speakerAllowed ? '🔊 Speaker Siswa: Boleh' : '🔊 Speaker Siswa: Dikunci';
+      btnAllowStudentSpk.title = speakerAllowed
+        ? 'Klik untuk mengunci pengaturan speaker siswa'
+        : 'Klik untuk membuka pengaturan speaker siswa';
+      btnAllowStudentSpk.setAttribute('aria-pressed', speakerAllowed ? 'true' : 'false');
+    }
   }
 
   function normalizeBroadcastEnabled(textValue, enabledValue){
@@ -249,9 +268,9 @@
   function labelForDevice(d, idx){
     const name = (d && d.label) ? d.label : '';
     if(name) return name;
-    if(d.kind === 'audioinput') return `Microphone ${idx+1}`;
+    if(d.kind === 'audioinput') return `Mikrofon ${idx+1}`;
     if(d.kind === 'audiooutput') return `Speaker ${idx+1}`;
-    return `Device ${idx+1}`;
+    return `Perangkat ${idx+1}`;
   }
 
   function pidOf(v){
@@ -329,12 +348,12 @@
     if(state === 'online') return 'Sedang aktif di halaman sesi';
 
     if(reason === 'outside_session_page') return 'Tidak berada di halaman sesi';
-    if(reason === 'tab_hidden') return 'Membuka tab lain / Minimize Browser';
-    if(reason === 'browser_closed' || reason === 'pagehide') return 'Browser/tab ditutup / keluar halaman';
+    if(reason === 'tab_hidden') return 'Membuka halaman lain / mengecilkan jendela';
+    if(reason === 'browser_closed' || reason === 'pagehide') return 'Halaman ditutup / keluar dari sesi';
     if(reason === 'heartbeat_timeout') return 'Koneksi ke sesi terputus';
 
     if(page === 'settings') return 'Sedang di halaman pengaturan';
-    if(page === 'about') return 'Sedang di halaman about';
+    if(page === 'about') return 'Sedang di halaman tentang';
     if(page === 'session') return 'Tidak fokus di halaman sesi';
     return 'Status tidak aktif';
   }
@@ -348,7 +367,7 @@
       return 'Peringatan guru: kamu tidak berada di halaman sesi. Segera kembali ke halaman sesi.';
     }
     if(reason === 'tab_hidden'){
-      return 'Peringatan guru: kamu membuka tab lain. Segera kembali ke tab sesi.';
+      return 'Peringatan guru: kamu membuka halaman lain. Segera kembali ke halaman sesi.';
     }
     if(reason === 'browser_closed' || reason === 'pagehide' || reason === 'heartbeat_timeout'){
       return 'Peringatan guru: koneksi sesi kamu terputus. Buka kembali halaman sesi.';
@@ -433,7 +452,7 @@
     state.audioUnlocked = ok;
     if(btnEnableAdminAudio) btnEnableAdminAudio.classList.toggle('ok', ok);
     if(!ok && auto){
-      setCallStatus('Klik "Aktifkan Audio" jika audio belum keluar.');
+      setCallStatus('Klik "Aktifkan Suara" jika suara belum keluar.');
     }
 
     syncAudioIndicator();
@@ -466,11 +485,11 @@
   async function refreshDevices(){
     if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices){
       if(selAdminMic){
-        selAdminMic.innerHTML = '<option value="">Browser tidak mendukung pemilihan mic</option>';
+        selAdminMic.innerHTML = '<option value="">Peramban tidak mendukung pemilihan mikrofon</option>';
         selAdminMic.disabled = true;
       }
       if(selAdminSpk){
-        selAdminSpk.innerHTML = '<option value="">Browser tidak mendukung pemilihan speaker</option>';
+        selAdminSpk.innerHTML = '<option value="">Peramban tidak mendukung pemilihan keluaran suara</option>';
         selAdminSpk.disabled = true;
       }
       return;
@@ -490,7 +509,7 @@
 
     const needPermissionHint = !state.devicePermissionAsked;
     if(selAdminMic){
-      const emptyMicText = needPermissionHint ? 'Klik dropdown untuk meminta izin mic' : 'Tidak ada microphone';
+      const emptyMicText = needPermissionHint ? 'Klik daftar pilihan untuk meminta izin mikrofon' : 'Tidak ada mikrofon';
       selAdminMic.innerHTML = inputs.length
         ? inputs.map((d,i)=> `<option value="${esc(d.deviceId)}">${esc(labelForDevice(d,i))}</option>`).join('')
         : `<option value="">${emptyMicText}</option>`;
@@ -499,9 +518,9 @@
 
     const canPickOutput = !!(adminRemoteAudio && typeof adminRemoteAudio.setSinkId === 'function');
     if(selAdminSpk){
-      const emptySpkText = needPermissionHint ? 'Klik dropdown untuk meminta izin mic' : 'Tidak ada speaker';
+      const emptySpkText = needPermissionHint ? 'Klik daftar pilihan untuk meminta izin mikrofon' : 'Tidak ada speaker';
       if(!canPickOutput){
-        selAdminSpk.innerHTML = '<option value="">Browser tidak mendukung pemilihan speaker</option>';
+        selAdminSpk.innerHTML = '<option value="">Perangkat ini belum bisa memilih speaker secara langsung</option>';
         selAdminSpk.disabled = true;
       }else{
         selAdminSpk.innerHTML = outputs.length
@@ -584,7 +603,7 @@
       const tmp = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       if(tmp) tmp.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
     }catch(err){
-      appendChat('System', `Izin mic diperlukan untuk memuat perangkat: ${err.message||err}`);
+      appendChat('Sistem', `Izin mikrofon diperlukan untuk memuat perangkat: ${err.message||err}`);
     }
     refreshDevices();
   }
@@ -593,10 +612,10 @@
     if(rtc.localStream) return rtc.localStream;
 
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error('Browser tidak mendukung getUserMedia');
+      throw new Error('Perangkat ini tidak mendukung akses mikrofon');
     }
     if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
-      throw new Error('Mic admin butuh HTTPS (atau localhost).');
+      throw new Error('Mikrofon guru memerlukan alamat situs yang aman.');
     }
 
     rtc.localStream = await getUserMediaWithSelectedMic();
@@ -640,7 +659,7 @@
     for(const peer of rtc.peers.values()){
       if(peer.pc && peer.pc.connectionState === 'connected') connected++;
     }
-    setCallStatus(total ? `Voice room: ${connected}/${total} tersambung` : 'Voice room: idle');
+    setCallStatus(total ? `Voice Room: ${connected}/${total} tersambung` : 'Voice Room: menunggu/standby');
     if(btnHangupCall) btnHangupCall.disabled = (total === 0);
   }
 
@@ -678,7 +697,7 @@
           if(state.audioUnlocked && state.adminSpeakerOn){
             audioEl.play().catch(()=>{});
           }else{
-            setCallStatus('Ada audio masuk. Klik "Aktifkan Audio".');
+            setCallStatus('Ada suara masuk. Klik "Aktifkan Suara".');
           }
           syncAudioIndicator();
         }
@@ -850,13 +869,13 @@
   function syncAdminMicBtn(){
     if(!btnAdminMic) return;
     btnAdminMic.classList.toggle('ok', rtc.micOn);
-    btnAdminMic.textContent = rtc.micOn ? 'Mic Admin: ON' : 'Mic Admin: OFF';
+    btnAdminMic.textContent = rtc.micOn ? 'Mikrofon Guru: Hidup' : 'Mikrofon Guru: Mati';
   }
 
   function syncAdminSpkBtn(){
     if(!btnAdminSpk) return;
     btnAdminSpk.classList.toggle('ok', state.adminSpeakerOn);
-    btnAdminSpk.textContent = state.adminSpeakerOn ? 'Speaker Admin: ON' : 'Speaker Admin: OFF';
+    btnAdminSpk.textContent = state.adminSpeakerOn ? 'Speaker Guru: Hidup' : 'Speaker Guru: Mati';
   }
 
   function applyAdminSpeakerState(){
@@ -909,7 +928,7 @@
         }catch(err){
           rtc.micOn = false;
           syncAdminMicBtn();
-          appendChat('System', `Mic admin tidak bisa diakses: ${err.message||err}`);
+          appendChat('Sistem', `Mikrofon guru tidak bisa diakses: ${err.message||err}`);
         }
       }else{
         applyAdminMic();
@@ -917,7 +936,7 @@
     });
 
     if(!IS_SECURE_CONTEXT && !ALLOW_INSECURE_MEDIA){
-      btnAdminMic.title = 'Mic admin biasanya butuh HTTPS/localhost';
+      btnAdminMic.title = 'Mikrofon guru biasanya memerlukan alamat situs yang aman';
     }
   }
 
@@ -956,7 +975,7 @@
           renegotiateAllPeers();
           refreshDevices();
         }catch(err){
-          appendChat('System', `Gagal ganti mic admin: ${err.message||err}`);
+          appendChat('Sistem', `Gagal mengganti mikrofon guru: ${err.message||err}`);
         }
       }
     });
@@ -1114,32 +1133,34 @@
     grid.innerHTML = arr.map(p=>{
       const presence = normalizePresenceState(state.presence.get(p.id));
       const online = presence.online ? 'online' : 'offline';
-      const device = p.device_label ? esc(p.device_label) : ('PC-' + p.id);
+      const device = p.device_label ? esc(p.device_label) : ('Komputer-' + p.id);
       const presenceDetail = presenceReasonLabel(presence);
-      const presenceStateLabel = presence.online ? 'ONLINE' : 'OFFLINE';
+      const presenceStateLabel = presence.online ? 'AKTIF' : 'TIDAK AKTIF';
 
       return `
         <div class="pcard" data-pid="${p.id}">
           <div class="top">
-            <div>
-              <div><b>${device}</b></div>
-              <div class="badge">${esc(p.student_name)} (${esc(p.class_name)})</div>
-              <div class="badge ${online}">${presenceStateLabel} • ${esc(p.ip_address||'-')}</div>
-              <div class="muted tiny" style="margin-top:6px">${esc(presenceDetail)}</div>
+            <div class="participantMeta">
+              <div class="participantDevice">${device}</div>
+              <div class="badge participantIdentity">${esc(p.student_name)} (${esc(p.class_name)})</div>
+              <div class="badge ${online} participantState">${presenceStateLabel} • ${esc(p.ip_address||'-')}</div>
+              <div class="muted tiny participantPresence">${esc(presenceDetail)}</div>
             </div>
-            <div class="row gap">
-              <button class="btnMic ${p.mic_on? 'ok':''}" title="Mic" type="button">${p.mic_on? '🎙️':'🔇'}</button>
-              <button class="btnSpk ${p.speaker_on? 'ok':''}" title="Speaker" type="button">${p.speaker_on? '🔊':'🔈'}</button>
+            <div class="participantActions">
+              <div class="row gap participantPrimaryActions">
+                <button class="btnMic ${p.mic_on? 'ok':''}" title="Mikrofon" type="button">${p.mic_on? '🎙️':'🔇'}</button>
+                <button class="btnSpk ${p.speaker_on? 'ok':''}" title="Speaker" type="button">${p.speaker_on? '🔊':'🔈'}</button>
+              </div>
+              <div class="row gap participantQuickActions">
+                <button class="btnPrivate participantIconBtn" title="Pesan ke siswa ini" aria-label="Pesan ke siswa ini" type="button">✉️</button>
+                <button class="btnWarn participantIconBtn danger" title="Kirim peringatan + suara" aria-label="Kirim peringatan + suara" type="button">🚨</button>
+              </div>
             </div>
-          </div>
-          <div class="row gap wrap" style="margin-top:8px">
-            <button class="btnPrivate" type="button">Pesan ke Siswa Ini</button>
-            <button class="btnWarn danger" type="button">Peringatan + Suara</button>
           </div>
         </div>`;
     }).join('');
 
-    // Keep selection + rebuild private dropdown
+    // Pertahankan pilihan + susun ulang daftar penerima privat
     if(privateTargetSel){
       const old = String(state.selectedPrivateTarget || '');
       const opts = arr.map(p=>{
@@ -1271,7 +1292,7 @@
       }
 
       if(t === 'session_ended'){
-        appendChat('System', 'Sesi ditutup.');
+        appendChat('Sistem', 'Sesi ditutup.');
         hangupAll(false).catch(()=>{});
         if(!sessionReloadQueued){
           sessionReloadQueued = true;
@@ -1280,7 +1301,7 @@
       }
 
       if(t === 'session_extended'){
-        appendChat('System', 'Batas sesi diperpanjang 30 menit.');
+        appendChat('Sistem', 'Batas sesi diperpanjang 30 menit.');
       }
 
       if(t === 'rtc_signal'){
@@ -1344,7 +1365,7 @@
       try{
         await ensureLocalStream();
       }catch(err){
-        appendChat('System', `Mic admin belum bisa diakses otomatis: ${err.message||err}`);
+        appendChat('Sistem', `Mikrofon guru belum bisa diakses otomatis: ${err.message||err}`);
       }
     }
 
@@ -1447,13 +1468,13 @@
       const mime = (file.mime||'').toLowerCase();
       const url = esc(file.url_path);
       const previewUrl = file.preview_url_path ? esc(file.preview_url_path) : '';
-      const filename = file.filename || 'file';
+      const filename = file.filename || 'berkas';
       const fileIdAttr = file.id ? ` data-file-id="${file.id}"` : '';
       const coverUrl = getCoverUrl(file);
 
       if(mime.startsWith('audio/')){
         return `<div class="mediaBlock">
-          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Sampul ${esc(filename)}">` : ''}
           <audio data-admin-media="1"${fileIdAttr} controls src="${url}" style="width:100%"></audio>
           ${renderFileNameBelow(filename)}
         </div>`;
@@ -1461,7 +1482,7 @@
       if(mime.startsWith('video/')){
         const poster = coverUrl ? ` poster="${esc(coverUrl)}"` : '';
         return `<div class="mediaBlock">
-          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Cover ${esc(filename)}">` : ''}
+          ${coverUrl ? `<img class="mediaCover" src="${esc(coverUrl)}" alt="Sampul ${esc(filename)}">` : ''}
           <video data-admin-media="1"${fileIdAttr}${poster} controls src="${url}" style="max-width:100%"></video>
           ${renderFileNameBelow(filename)}
         </div>`;
@@ -1491,7 +1512,7 @@
       if(isOfficeDoc(filename) || isOfficeDoc(url)){
         return `<div class="docPreview">
           <div class="muted tiny" style="margin-top:8px">
-            Preview lokal belum tersedia untuk file ini. Buka file langsung di tab baru.
+            Pratinjau lokal belum tersedia untuk berkas ini. Buka berkas langsung di halaman baru.
           </div>
           <div class="row gap" style="margin-top:8px">
             <button class="btn tiny" type="button" data-preview-url="${url}" data-preview-title="${esc(filename)}">Perbesar</button>
@@ -1501,14 +1522,14 @@
         </div>`;
       }
       return `<div class="mediaBlock">
-        <div><a href="${url}" target="_blank">Buka file</a></div>
+        <div><a href="${url}" target="_blank">Buka berkas</a></div>
         ${renderFileNameBelow(filename)}
       </div>`;
     };
 
     let html = `<div><b>${esc(m.title||'')}</b></div>`;
     html += `<div class="materialPreviewCard" style="margin-top:10px">`;
-    html += `<div class="muted tiny">Preview yang sedang ditampilkan ke siswa</div>`;
+    html += `<div class="muted tiny">Pratinjau yang sedang ditampilkan ke siswa</div>`;
 
     let hasPreview = false;
     if(selectedText){
@@ -1518,7 +1539,7 @@
     }
     if(selectedFile){
       hasPreview = true;
-      html += `<div class="muted tiny" style="margin-top:10px">File yang ditampilkan</div>`;
+      html += `<div class="muted tiny" style="margin-top:10px">Berkas yang ditampilkan</div>`;
       html += renderFilePreview(selectedFile);
     }
     if(!hasPreview){
@@ -1545,21 +1566,21 @@
 
     if(files.length){
       html += `<div class="row between wrap gap" style="margin-top:10px;align-items:center">
-        <div class="muted tiny">Daftar File</div>
-        <button class="btn tiny iconBtn" type="button" data-mat-action="hide-file" title="Tutup file materi yang sedang ditampilkan" aria-label="Tutup file materi yang sedang ditampilkan">&times;</button>
+        <div class="muted tiny">Daftar Berkas</div>
+        <button class="btn tiny iconBtn" type="button" data-mat-action="hide-file" title="Tutup berkas materi yang sedang ditampilkan" aria-label="Tutup berkas materi yang sedang ditampilkan">&times;</button>
       </div>`;
       html += `<ul class="materialList">`;
       files.forEach((f)=>{
         const active = !!(selectedFile && Number(selectedFile.id) === Number(f.id));
         html += `<li class="materialItem ${active ? 'active' : ''}">
-          <div class="label">${esc(f.filename||'file')}</div>
-          <button class="btn tiny iconBtn materialActionBtn" type="button" data-mat-action="pick-file" data-file-id="${f.id}" title="Tampilkan file ini" aria-label="Tampilkan file ini">&#9654;</button>
+          <div class="label">${esc(f.filename||'berkas')}</div>
+          <button class="btn tiny iconBtn materialActionBtn" type="button" data-mat-action="pick-file" data-file-id="${f.id}" title="Tampilkan berkas ini" aria-label="Tampilkan berkas ini">&#9654;</button>
         </li>`;
       });
       html += `</ul>`;
     }
     if(!textItems.length && !files.length){
-      html += `<div class="muted">Belum ada teks atau file dalam materi ini.</div>`;
+      html += `<div class="muted">Belum ada teks atau berkas dalam materi ini.</div>`;
     }
     html += `</div>`;
 
@@ -1659,19 +1680,22 @@
       const pid = Number(card.dataset.pid||0);
       if(!pid) return;
 
-      if(ev.target.classList.contains('btnMic')){
+      const btnMicEl = ev.target.closest('.btnMic');
+      if(btnMicEl && card.contains(btnMicEl)){
         const cur = state.participants.get(pid);
         const next = cur && cur.mic_on ? 0 : 1;
         await post('/api/control/admin/mic', {participant_id: pid, mic_on: next});
       }
 
-      if(ev.target.classList.contains('btnSpk')){
+      const btnSpkEl = ev.target.closest('.btnSpk');
+      if(btnSpkEl && card.contains(btnSpkEl)){
         const cur = state.participants.get(pid);
         const next = cur && cur.speaker_on ? 0 : 1;
         await post('/api/control/admin/speaker', {participant_id: pid, speaker_on: next});
       }
 
-      if(ev.target.classList.contains('btnPrivate')){
+      const btnPrivateEl = ev.target.closest('.btnPrivate');
+      if(btnPrivateEl && card.contains(btnPrivateEl)){
         state.selectedPrivateTarget = pid;
         if(privateTargetSel) privateTargetSel.value = String(pid);
 
@@ -1680,10 +1704,11 @@
           chatModeSel.dispatchEvent(new Event('change'));
         }
 
-        appendChat('Info', `Tujuan pesan diatur ke ${studentNameByPid(pid)}.`);
+        appendChat('Informasi', `Tujuan pesan diatur ke ${studentNameByPid(pid)}.`);
       }
 
-      if(ev.target.classList.contains('btnWarn')){
+      const btnWarnEl = ev.target.closest('.btnWarn');
+      if(btnWarnEl && card.contains(btnWarnEl)){
         const message = warningMessageForParticipant(pid);
         const r = await post('/api/control/admin/warn', {
           participant_id: pid,
@@ -1692,9 +1717,9 @@
         });
         if(r && r.ok){
           const label = `${r.student_name || 'Siswa'}${r.class_name ? ' (' + r.class_name + ')' : ''}`;
-          appendChat('System', `Peringatan + suara dikirim ke ${label}.`);
+          appendChat('Sistem', `Peringatan + suara dikirim ke ${label}.`);
         }else{
-          appendChat('System', (r && r.error) ? r.error : 'Gagal mengirim peringatan.');
+          appendChat('Sistem', (r && r.error) ? r.error : 'Gagal mengirim peringatan.');
         }
       }
     });
@@ -1739,7 +1764,7 @@
 
     if(target_type === 'private_student'){
       if(!state.selectedPrivateTarget){
-        appendChat('System','Pilih siswa dulu.');
+        appendChat('Sistem','Pilih siswa dulu.');
         return;
       }
       payload.target_participant_id = state.selectedPrivateTarget;
@@ -1811,26 +1836,51 @@
     });
   }
 
-  async function saveVoiceLock(){
-    if(!chkAllowStudentMic && !chkAllowStudentSpk) return;
+  async function saveVoiceLock(nextMicAllowed, nextSpeakerAllowed){
+    if(!btnAllowStudentMic && !btnAllowStudentSpk) return;
+
+    const prevMicAllowed = !!state.allowStudentMic;
+    const prevSpeakerAllowed = !!state.allowStudentSpeaker;
+    const targetMicAllowed = (nextMicAllowed === undefined) ? prevMicAllowed : !!nextMicAllowed;
+    const targetSpeakerAllowed = (nextSpeakerAllowed === undefined) ? prevSpeakerAllowed : !!nextSpeakerAllowed;
+
+    state.allowStudentMic = targetMicAllowed;
+    state.allowStudentSpeaker = targetSpeakerAllowed;
+    syncLockUI();
+
+    if(btnAllowStudentMic) btnAllowStudentMic.disabled = true;
+    if(btnAllowStudentSpk) btnAllowStudentSpk.disabled = true;
+
     const payload = {
-      allow_student_mic: (chkAllowStudentMic && chkAllowStudentMic.checked) ? 1 : 0,
-      allow_student_speaker: (chkAllowStudentSpk && chkAllowStudentSpk.checked) ? 1 : 0,
+      allow_student_mic: targetMicAllowed ? 1 : 0,
+      allow_student_speaker: targetSpeakerAllowed ? 1 : 0,
     };
     const r = await post('/api/control/admin/voice-lock', payload);
     if(r && r.ok){
-      if(r.allow_student_mic !== undefined) state.allowStudentMic = !!r.allow_student_mic;
-      if(r.allow_student_speaker !== undefined) state.allowStudentSpeaker = !!r.allow_student_speaker;
-      syncLockUI();
+      state.allowStudentMic = (r.allow_student_mic !== undefined) ? !!r.allow_student_mic : targetMicAllowed;
+      state.allowStudentSpeaker = (r.allow_student_speaker !== undefined) ? !!r.allow_student_speaker : targetSpeakerAllowed;
     }else{
-      const msg = (r && r.error) ? r.error : 'Gagal menyimpan kontrol mic/speaker siswa.';
-      appendChat('System', msg);
-      syncLockUI();
+      const msg = (r && r.error) ? r.error : 'Gagal menyimpan kontrol mikrofon/speaker siswa.';
+      appendChat('Sistem', msg);
+      state.allowStudentMic = prevMicAllowed;
+      state.allowStudentSpeaker = prevSpeakerAllowed;
     }
+
+    if(btnAllowStudentMic) btnAllowStudentMic.disabled = false;
+    if(btnAllowStudentSpk) btnAllowStudentSpk.disabled = false;
+    syncLockUI();
   }
 
-  if(chkAllowStudentMic) chkAllowStudentMic.addEventListener('change', saveVoiceLock);
-  if(chkAllowStudentSpk) chkAllowStudentSpk.addEventListener('change', saveVoiceLock);
+  if(btnAllowStudentMic){
+    btnAllowStudentMic.addEventListener('click', ()=>{
+      saveVoiceLock(!state.allowStudentMic, state.allowStudentSpeaker);
+    });
+  }
+  if(btnAllowStudentSpk){
+    btnAllowStudentSpk.addEventListener('click', ()=>{
+      saveVoiceLock(state.allowStudentMic, !state.allowStudentSpeaker);
+    });
+  }
 
   if(btnRefreshMaterial){
     btnRefreshMaterial.onclick = refreshMaterial;
@@ -1843,7 +1893,7 @@
 
   // Start polling
   if(!window.EventPoller){
-    appendChat('System', 'EventPoller tidak ditemukan. Pastikan poll.js dimuat.');
+    appendChat('Sistem', 'EventPoller tidak ditemukan. Pastikan poll.js dimuat.');
     return;
   }
 
@@ -1881,3 +1931,4 @@
   });
 
 })();
+

@@ -49,15 +49,15 @@ $modeLabel = $mode_label ?? 'Menunggu sesi';
           value="<?= esc((string) ($profile['class_name'] ?? '')) ?>"
         >
 
-        <label>Nama Komputer (opsional)</label>
+        <label>Nama komputer (opsional)</label>
         <input
           name="device_label"
           maxlength="60"
-          placeholder="PC-01"
+          placeholder="Komputer-01"
           value="<?= esc((string) ($profile['device_label'] ?? '')) ?>"
         >
 
-        <button type="submit" class="ok" style="margin-top:10px">Simpan Pengaturan</button>
+        <button type="submit" class="ok" style="margin-top:10px">Simpan Perubahan</button>
       </form>
     </section>
   <?php endif; ?>
@@ -68,3 +68,4 @@ $modeLabel = $mode_label ?? 'Menunggu sesi';
 </div>
 
 <?= $this->endSection() ?>
+

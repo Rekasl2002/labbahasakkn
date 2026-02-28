@@ -77,7 +77,7 @@
         if(!res.ok){
           // e.g. 401/403/500
           this.onError({ type:'http', status: res.status });
-          throw new Error('HTTP ' + res.status);
+          throw new Error('Kode status ' + res.status);
         }
 
         const data = await res.json().catch(()=>null);

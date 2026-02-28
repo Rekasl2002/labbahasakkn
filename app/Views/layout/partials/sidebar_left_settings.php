@@ -1,8 +1,8 @@
 <?php
 $role = $role ?? '';
-$roleLabel = $role === 'admin' ? 'Admin' : 'Siswa';
+$roleLabel = $role === 'admin' ? 'Guru' : 'Siswa';
 $userName = $role === 'admin'
-    ? (session('admin_username') ?: 'Admin')
+    ? (session('admin_username') ?: 'Guru')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
 $tab = $tab ?? ($role === 'admin' ? 'auto-detect' : 'general');
@@ -10,10 +10,11 @@ $tab = $tab ?? ($role === 'admin' ? 'auto-detect' : 'general');
 $links = [];
 if ($role === 'admin') {
     $links = [
-        'branding' => 'Nama Aplikasi & Logo',
+        'branding' => 'Nama Aplikasi dan Logo',
         'warning-sound' => 'Suara Peringatan',
-        'auto-detect' => 'Auto-Deteksi Komputer Siswa',
-        'password' => 'Ganti Password Admin',
+        'tutorial' => 'Panduan Tutorial',
+        'auto-detect' => 'Deteksi Otomatis Komputer Siswa',
+        'password' => 'Ubah Kata Sandi Guru',
         'materials' => 'Manajemen Materi',
     ];
 } elseif ($role === 'student') {
@@ -27,7 +28,7 @@ if ($role === 'admin') {
   <div class="lab-sidebar-inner">
     <div class="lab-sidebar-head">
       <div class="lab-sidebar-title">Pengaturan</div>
-      <div class="lab-sidebar-sub">Sidebar Kiri • <?= esc($roleLabel) ?></div>
+      <div class="lab-sidebar-sub">Panel Kiri • <?= esc($roleLabel) ?></div>
     </div>
     <div class="lab-sidebar-user">
       <div class="name"><?= esc($userName) ?></div>
@@ -57,3 +58,4 @@ if ($role === 'admin') {
     </section>
   </div>
 </aside>
+

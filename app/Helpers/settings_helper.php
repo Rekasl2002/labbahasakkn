@@ -15,6 +15,8 @@ if (!function_exists('lab_default_settings')) {
             'logo_path' => '/favicon.ico',
             'favicon_path' => '/favicon.ico',
             'warning_sound_path' => '',
+            'tutorial_teacher_path' => '',
+            'tutorial_student_path' => '',
             'ip_range_start' => '192.168.100.101',
             'ip_range_end' => '192.168.100.140',
             'label_format' => 'Komputer {n}',
@@ -177,6 +179,96 @@ if (!function_exists('lab_asset_public_url')) {
         }
 
         return base_url(ltrim($normalized, '/'));
+    }
+}
+
+if (!function_exists('lab_public_asset_exists')) {
+    function lab_public_asset_exists(string $path): bool
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return false;
+        }
+
+        if (preg_match('~^(https?:)?//~i', $path) === 1 || str_starts_with($path, 'data:')) {
+            return true;
+        }
+
+        $normalized = '/' . ltrim(str_replace('\\', '/', $path), '/');
+        $full = ROOTPATH . 'public' . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+
+        return is_file($full);
+    }
+}
+
+if (!function_exists('lab_tutorial_catalog')) {
+    function lab_tutorial_catalog(?array $settings = null): array
+    {
+        $settings = $settings ?? lab_load_settings();
+
+        $defs = [
+            'teacher' => [
+                'setting_key' => 'tutorial_teacher_path',
+                'default_path' => '/assets/tutorial/Tutorial_Guru_Admin.pdf',
+                'label' => 'Panduan untuk Guru',
+            ],
+            'student' => [
+                'setting_key' => 'tutorial_student_path',
+                'default_path' => '/assets/tutorial/Tutorial_Siswa.pdf',
+                'label' => 'Panduan untuk Siswa',
+            ],
+        ];
+
+        $out = [];
+        foreach ($defs as $key => $def) {
+            $configuredPath = trim((string) ($settings[$def['setting_key']] ?? ''));
+            $defaultPath = trim((string) ($def['default_path'] ?? ''));
+
+            $activePath = '';
+            if ($configuredPath !== '' && lab_public_asset_exists($configuredPath)) {
+                $activePath = $configuredPath;
+            } elseif ($defaultPath !== '' && lab_public_asset_exists($defaultPath)) {
+                $activePath = $defaultPath;
+            }
+
+            $out[$key] = [
+                'key' => $key,
+                'label' => (string) ($def['label'] ?? ''),
+                'path' => $activePath,
+                'url' => $activePath !== '' ? lab_asset_public_url($activePath) : '',
+                'default_path' => $defaultPath,
+                'configured_path' => $configuredPath,
+                'is_default' => $activePath !== '' && $activePath === $defaultPath,
+            ];
+        }
+
+        return $out;
+    }
+}
+
+if (!function_exists('lab_tutorial_items_for_role')) {
+    function lab_tutorial_items_for_role(string $role, ?array $settings = null): array
+    {
+        $role = strtolower(trim($role));
+        $catalog = lab_tutorial_catalog($settings);
+        $keys = $role === 'admin' ? ['teacher', 'student'] : ['student'];
+
+        $items = [];
+        foreach ($keys as $key) {
+            if (!isset($catalog[$key])) {
+                continue;
+            }
+
+            $item = $catalog[$key];
+            $url = trim((string) ($item['url'] ?? ''));
+            if ($url === '') {
+                continue;
+            }
+
+            $items[] = $item;
+        }
+
+        return $items;
     }
 }
 

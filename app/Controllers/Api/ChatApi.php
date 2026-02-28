@@ -26,19 +26,19 @@ class ChatApi extends BaseController
             }
         }
 
-        if ($sessionId <= 0) return $this->json(['ok' => false, 'error' => 'No session'], 400);
+        if ($sessionId <= 0) return $this->json(['ok' => false, 'error' => 'Sesi tidak ditemukan'], 400);
 
         $body = trim((string) $this->request->getPost('body'));
         $targetType = (string) $this->request->getPost('target_type'); // public|private_admin|private_student
         $targetPid  = (int) $this->request->getPost('target_participant_id');
 
-        if ($body === '') return $this->json(['ok' => false, 'error' => 'Empty'], 400);
+        if ($body === '') return $this->json(['ok' => false, 'error' => 'Pesan tidak boleh kosong'], 400);
         if (!in_array($targetType, ['public', 'private_admin', 'private_student'], true)) $targetType = 'public';
-        if ($targetType === 'private_student' && $targetPid <= 0) return $this->json(['ok' => false, 'error' => 'target_participant_id required'], 400);
+        if ($targetType === 'private_student' && $targetPid <= 0) return $this->json(['ok' => false, 'error' => 'target_participant_id wajib diisi'], 400);
 
         // Student only can message public or private_admin
         if (!$isAdmin && $targetType === 'private_student') {
-            return $this->json(['ok' => false, 'error' => 'Forbidden'], 403);
+            return $this->json(['ok' => false, 'error' => 'Aksi tidak diizinkan'], 403);
         }
 
         $mm = new MessageModel();
@@ -80,3 +80,4 @@ class ChatApi extends BaseController
         return $this->json(['ok' => true, 'message_id' => $msgId]);
     }
 }
+

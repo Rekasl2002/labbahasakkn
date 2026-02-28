@@ -36,9 +36,9 @@ $deadlineAtText = $deadlineAtText !== '' ? $deadlineAtText : '-';
       <tr><td>Deadline</td><td><?= esc($deadlineAtText) ?></td></tr>
       <tr><td>Durasi</td><td><?= esc((string) ($durationText ?? '-')) ?></td></tr>
       <tr><td>Jumlah Peserta</td><td><?= count($participants) ?></td></tr>
-      <tr><td>Total Chat</td><td><?= (int) $messagesCount ?></td></tr>
+      <tr><td>Total Pesan</td><td><?= (int) $messagesCount ?></td></tr>
       <tr><td>Jumlah Materi Digunakan</td><td><?= (int) $materialsUsed ?></td></tr>
-      <tr><td>Waktu Generate Laporan</td><td><?= esc((string) ($generatedAt ?? '-')) ?></td></tr>
+      <tr><td>Waktu Pembuatan Laporan</td><td><?= esc((string) ($generatedAt ?? '-')) ?></td></tr>
     </tbody>
   </table>
 
@@ -52,8 +52,8 @@ $deadlineAtText = $deadlineAtText !== '' ? $deadlineAtText : '-';
         <th>Kelas</th>
         <th>Komputer</th>
         <th>IP</th>
-        <th>Join</th>
-        <th>Last Seen</th>
+        <th>Waktu Masuk</th>
+        <th>Terakhir Aktif</th>
       </tr>
     </thead>
     <tbody>
@@ -77,3 +77,4 @@ $deadlineAtText = $deadlineAtText !== '' ? $deadlineAtText : '-';
   </table>
 </body>
 </html>
+

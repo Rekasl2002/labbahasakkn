@@ -33,17 +33,17 @@ $materialsTab = trim((string) ($request ? $request->getGet('mat') : ''));
  * Format final: Nama Aplikasi | Nama Halaman
  */
 $pageTitles = [
-    '' => 'Login',
-    'login' => 'Login',
+    '' => 'Masuk',
+    'login' => 'Masuk',
     'login/student' => 'Menunggu Sesi',
     'about' => 'Tentang',
     'waiting' => 'Menunggu Sesi',
     'waiting/profile' => 'Menunggu Sesi',
-    'admin' => 'Sesi Admin',
+    'admin' => 'Sesi Guru',
     'admin/session/end' => 'Rekap Sesi',
     'student' => 'Sesi Siswa',
     'student/settings' => 'Pengaturan Siswa',
-    'errors/preview' => 'Preview Error',
+    'errors/preview' => 'Pratinjau Galat',
 ];
 
 $pageTitle = $pageTitles[$path] ?? '';
@@ -54,20 +54,22 @@ if (preg_match('#^admin/session/\d+/recap$#', $path) === 1) {
 
 if ($path === 'admin/settings') {
     $tabTitles = [
-        'branding' => 'Branding Aplikasi',
-        'auto-detect' => 'Auto-Deteksi Komputer',
-        'password' => 'Ganti Password Admin',
+        'branding' => 'Tampilan Aplikasi',
+        'warning-sound' => 'Suara Peringatan',
+        'tutorial' => 'Panduan Tutorial',
+        'auto-detect' => 'Deteksi Otomatis Komputer',
+        'password' => 'Ubah Kata Sandi Guru',
     ];
 
     if ($tab === 'materials') {
         $materialsTitles = [
             'list' => 'Manajemen Materi',
             'add' => 'Tambah Materi',
-            'edit' => 'Edit Materi',
+            'edit' => 'Ubah Materi',
         ];
         $pageTitle = $materialsTitles[$materialsTab] ?? 'Manajemen Materi';
     } else {
-        $pageTitle = $tabTitles[$tab] ?? 'Pengaturan Admin';
+        $pageTitle = $tabTitles[$tab] ?? 'Pengaturan Guru';
     }
 }
 
@@ -86,3 +88,4 @@ if ($pageTitle !== '' && strcasecmp($pageTitle, $appName) !== 0) {
 <link rel="icon" href="<?= esc($branding['favicon_url']) ?>" type="image/x-icon">
 <link rel="apple-touch-icon" href="<?= esc($branding['logo_url']) ?>">
 <link rel="stylesheet" href="<?= asset_url('assets/css/app.css') ?>">
+

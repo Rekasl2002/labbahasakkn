@@ -1,31 +1,38 @@
 <?php
 helper('settings');
 $role = $role ?? '';
-$roleLabel = $role === 'Guru' ? 'Admin' : 'Siswa';
-$userName = $role === 'Guru'
-    ? (session('admin_username') ?: 'Admin')
+$roleLabel = $role === 'admin' ? 'Guru' : 'Siswa';
+$userName = $role === 'admin'
+    ? (session('admin_username') ?: 'Guru')
     : (session('student_name') ?: 'Siswa');
 $userMeta = $role === 'student' ? (session('class_name') ?: '') : '';
 $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
+$tutorialItems = lab_tutorial_items_for_role($role === 'admin' ? 'admin' : 'student');
 ?>
 
 <?php if ($role === 'student'): ?>
   <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
-      <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title"><?= esc($appName) ?></div>
-        <div class="lab-sidebar-sub">Sidebar Kiri • <?= esc($roleLabel) ?></div>
-      </div>
-      <div class="lab-sidebar-user">
-        <div class="name"><?= esc($userName) ?></div>
-        <?php if ($userMeta !== ''): ?>
-          <div class="meta"><?= esc($userMeta) ?></div>
-        <?php endif; ?>
-      </div>
       <section class="card">
         <h2 style="margin:0 0 8px">Teman Sesi</h2>
         <ul id="peersList" class="list"></ul>
       </section>
+      <?php if (!empty($tutorialItems)): ?>
+        <section class="card" style="margin-top:10px">
+          <h2 style="margin:0 0 8px">Panduan Aplikasi</h2>
+          <?php foreach ($tutorialItems as $item): ?>
+            <a
+              href="#"
+              class="btn tiny"
+              style="margin-right:6px; margin-bottom:6px"
+              data-preview-url="<?= esc($item['url'] ?? '') ?>"
+              data-preview-title="<?= esc($item['label'] ?? 'Panduan') ?>"
+            >
+              <?= esc($item['label'] ?? 'Panduan') ?>
+            </a>
+          <?php endforeach; ?>
+        </section>
+      <?php endif; ?>
     </div>
     <section class="lab-sidebar-audio">
       <div class="lab-sidebar-audio-title">Audio</div>
@@ -34,23 +41,23 @@ $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
       </div>
       <div id="studentAudioIndicator" class="audioIndicator idle" aria-live="polite">
         <span class="dot"></span>
-        <span class="text">Audio: standby</span>
+        <span class="text">Audio: menunggu/standby</span>
       </div>
-      <button id="btnEnableAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan output audio browser">
-        🔊 Aktifkan Audio
+      <button id="btnEnableAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan keluaran suara di peramban">
+        🔊 Aktifkan Suara
       </button>
       <div class="lab-audio-group">
-        <button id="btnMic" type="button" class="btn lab-audio-btn" title="Aktif/nonaktif mic kamu">
-          Mic: OFF
+        <button id="btnMic" type="button" class="btn lab-audio-btn" title="Aktif/nonaktif mikrofon kamu">
+          Mikrofon: Mati
         </button>
         <div class="lab-audio-dd" aria-hidden="true">
           <span class="lab-audio-caret">▾</span>
-          <select id="selMic" aria-label="Pilih microphone"></select>
+          <select id="selMic" aria-label="Pilih mikrofon"></select>
         </div>
       </div>
       <div class="lab-audio-group">
         <button id="btnSpk" type="button" class="btn lab-audio-btn" title="Aktif/nonaktif speaker kamu">
-          Speaker: ON
+          Speaker: Hidup
         </button>
         <div class="lab-audio-dd" aria-hidden="true">
           <span class="lab-audio-caret">▾</span>
@@ -60,10 +67,10 @@ $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
       <div class="lab-audio-sliders">
         <div class="lab-audio-slider-row">
           <label class="lab-audio-slider-head" for="rngMicVol">
-            <span>Volume Mic</span>
+            <span>Volume Mikrofon</span>
             <span id="txtMicVol">100%</span>
           </label>
-          <input id="rngMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mic siswa">
+          <input id="rngMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mikrofon siswa">
         </div>
         <div class="lab-audio-slider-row">
           <label class="lab-audio-slider-head" for="rngSpkVol">
@@ -78,76 +85,81 @@ $appName = (lab_app_branding()['app_name'] ?? 'Lab Bahasa');
 <?php elseif ($role === 'admin'): ?>
   <aside class="lab-sidebar lab-sidebar-left lab-sidebar-with-audio">
     <div class="lab-sidebar-inner">
-      <div class="lab-sidebar-head">
-        <div class="lab-sidebar-title"><?= esc($appName) ?></div>
-      </div>
-      <div class="lab-sidebar-user">
-        <div class="name"><?= esc($userName) ?></div>
-      </div>
       <section class="card">
         <h2 style="margin:0 0 6px">Kontrol Cepat</h2>
         <div class="row wrap gap" style="align-items:center">
-          <button id="btnMuteAllMic" type="button" class="danger">🔇 Mute Mic Semua</button>
-          <button id="btnUnmuteAllMic" type="button" class="ok">🎙️ Unmute Mic Semua</button>
+          <button id="btnMuteAllMic" type="button" class="danger">🔇 Matikan Mikrofon Semua</button>
+          <button id="btnUnmuteAllMic" type="button" class="ok">🎙️ Nyalakan Mikrofon Semua</button>
         </div>
 
         <div class="row wrap gap" style="align-items:center; margin-top:8px">
-          <button id="btnMuteAllSpk" type="button" class="danger">🔈 Mute Speaker Semua</button>
-          <button id="btnUnmuteAllSpk" type="button" class="ok">🔊 Unmute Speaker Semua</button>
+          <button id="btnMuteAllSpk" type="button" class="danger">🔈 Matikan Speaker Semua</button>
+          <button id="btnUnmuteAllSpk" type="button" class="ok">🔊 Nyalakan Speaker Semua</button>
         </div>
 
         <div class="row gap wrap" style="margin-top:10px; align-items:center">
           <span class="muted tiny" style="min-width:110px">Kontrol Siswa</span>
-          <label class="row gap" style="align-items:center">
-            <input id="chkAllowStudentMic" type="checkbox">
-            <span class="tiny">Siswa boleh atur mic</span>
-          </label>
-          <label class="row gap" style="align-items:center">
-            <input id="chkAllowStudentSpk" type="checkbox">
-            <span class="tiny">Siswa boleh atur speaker</span>
-          </label>
+          <button id="btnAllowStudentMic" type="button" class="ok btn" title="Aktif/nonaktif izin siswa mengatur mikrofon">🎙️ Mikrofon Siswa: Boleh</button>
+          <button id="btnAllowStudentSpk" type="button" class="ok btn" title="Aktif/nonaktif izin siswa mengatur speaker">🔊 Speaker Siswa: Boleh</button>
         </div>
       </section>
+      <?php if (!empty($tutorialItems)): ?>
+        <section class="card" style="margin-top:10px">
+          <h2 style="margin:0 0 8px">Panduan Aplikasi</h2>
+          <?php foreach ($tutorialItems as $item): ?>
+            <a
+              href="#"
+              class="btn tiny"
+              style="margin-right:6px; margin-bottom:6px"
+              data-preview-url="<?= esc($item['url'] ?? '') ?>"
+              data-preview-title="<?= esc($item['label'] ?? 'Panduan') ?>"
+            >
+              <?= esc($item['label'] ?? 'Panduan') ?>
+            </a>
+          <?php endforeach; ?>
+        </section>
+      <?php endif; ?>
     </div>
     <section class="lab-sidebar-audio">
-      <div class="lab-sidebar-audio-title">Audio Admin</div>
+      <div class="lab-sidebar-audio-title">Audio Guru</div>
       <div id="adminAudioIndicator" class="audioIndicator idle" aria-live="polite">
         <span class="dot"></span>
-        <span class="text">Audio: standby</span>
+        <span class="text">Audio: menunggu/standby</span>
       </div>
-      <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan audio pada browser">
-        🔊 Aktifkan Audio
+      <button id="btnEnableAdminAudio" type="button" class="ok" title="Klik sekali untuk mengaktifkan suara di peramban">
+        🔊 Aktifkan Suara
       </button>
       <div class="lab-audio-group">
-        <button id="btnAdminMic" class="ok btn lab-audio-btn" type="button" title="Aktif/nonaktif mic admin">🎙️ Mic Admin: ON</button>
+        <button id="btnAdminMic" class="ok btn lab-audio-btn" type="button" title="Aktif/nonaktif mikrofon guru">🎙️ Mikrofon Guru: Hidup</button>
         <div class="lab-audio-dd" aria-hidden="true">
           <span class="lab-audio-caret">▾</span>
-          <select id="selAdminMic" aria-label="Pilih mic admin"></select>
+          <select id="selAdminMic" aria-label="Pilih mikrofon guru"></select>
         </div>
       </div>
       <div class="lab-audio-group">
-        <button id="btnAdminSpk" class="ok btn lab-audio-btn" type="button" title="Aktif/nonaktif speaker admin">🔊 Speaker Admin: ON</button>
+        <button id="btnAdminSpk" class="ok btn lab-audio-btn" type="button" title="Aktif/nonaktif speaker guru">🔊 Speaker Guru: Hidup</button>
         <div class="lab-audio-dd" aria-hidden="true">
           <span class="lab-audio-caret">▾</span>
-          <select id="selAdminSpk" aria-label="Pilih speaker admin"></select>
+          <select id="selAdminSpk" aria-label="Pilih speaker guru"></select>
         </div>
       </div>
       <div class="lab-audio-sliders">
         <div class="lab-audio-slider-row">
           <label class="lab-audio-slider-head" for="rngAdminMicVol">
-            <span>Volume Mic</span>
+            <span>Volume Mikrofon</span>
             <span id="txtAdminMicVol">100%</span>
           </label>
-          <input id="rngAdminMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mic admin">
+          <input id="rngAdminMicVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume mikrofon guru">
         </div>
         <div class="lab-audio-slider-row">
           <label class="lab-audio-slider-head" for="rngAdminSpkVol">
             <span>Volume Speaker</span>
             <span id="txtAdminSpkVol">100%</span>
           </label>
-          <input id="rngAdminSpkVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume speaker admin">
+          <input id="rngAdminSpkVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume speaker guru">
         </div>
       </div>
     </section>
   </aside>
 <?php endif; ?>
+

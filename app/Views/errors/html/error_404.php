@@ -60,7 +60,7 @@ $normalizeText = function ($value, string $fallback = ''): string {
   return $fallback;
 };
 
-$appName = $settingValue('app_name', 'SIB-K', 'general');
+$appName = $settingValue('app_name', 'Lab Bahasa', 'general');
 $faviconPath = $settingValue('favicon_path', 'assets/images/favicon.ico', 'branding');
 $faviconUrl = $baseUrl($faviconPath);
 
@@ -183,7 +183,7 @@ $messageText = $normalizeText(
     <div class="auth-grid">
       <section class="card auth-card">
         <div class="auth-avatar">404</div>
-        <div class="chip-wrap"><span class="chip">HTTP 404</span></div>
+        <div class="chip-wrap"><span class="chip">Kode Galat 404</span></div>
         <h1 class="auth-title"><?= esc($headingText) ?></h1>
         <p class="hint-muted"><?= esc(strip_tags($messageText)) ?></p>
 

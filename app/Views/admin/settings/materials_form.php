@@ -9,8 +9,8 @@ $embedQuery = $embed ? '&embed=1' : '';
 
 <div class="row between wrap gap" style="align-items:flex-end">
   <div>
-    <h2 style="margin:0"><?= $mode === 'edit' ? 'Edit Materi' : 'Tambah Materi' ?></h2>
-    <div class="muted tiny" style="margin-top:4px">Materi akan tampil di halaman siswa saat dibroadcast.</div>
+    <h2 style="margin:0"><?= $mode === 'edit' ? 'Ubah Materi' : 'Tambah Materi' ?></h2>
+    <div class="muted tiny" style="margin-top:4px">Materi akan tampil di halaman siswa saat ditampilkan.</div>
   </div>
   <?php if ($mode === 'edit'): ?>
     <a class="btn" href="/admin/settings?tab=materials&mat=add<?= $embedQuery ?>">+ Materi Baru</a>
@@ -20,28 +20,28 @@ $embedQuery = $embed ? '&embed=1' : '';
 <form method="post" enctype="multipart/form-data"
       action="<?= $mode === 'edit' ? '/admin/materials/update/' . (int)$material['id'] : '/admin/materials/store' ?>">
   <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
-  <label>Title</label>
+  <label>Judul</label>
   <input name="title" required value="<?= esc($material['title'] ?? '') ?>">
 
-  <label>Type</label>
+  <label>Jenis</label>
   <select name="type" id="matType">
-    <option value="folder" <?= ($material['type'] ?? '') === 'folder' ? 'selected' : '' ?>>folder (multi file + daftar teks)</option>
-    <option value="text" <?= ($material['type'] ?? '') === 'text' ? 'selected' : '' ?>>text (single)</option>
-    <option value="file" <?= ($material['type'] ?? '') === 'file' ? 'selected' : '' ?>>file (single)</option>
+    <option value="folder" <?= ($material['type'] ?? '') === 'folder' ? 'selected' : '' ?>>Folder (banyak berkas + daftar teks)</option>
+    <option value="text" <?= ($material['type'] ?? '') === 'text' ? 'selected' : '' ?>>Teks (satu isi)</option>
+    <option value="file" <?= ($material['type'] ?? '') === 'file' ? 'selected' : '' ?>>Berkas (satu berkas)</option>
   </select>
 
   <div id="textBox">
-    <label>Text content</label>
+    <label>Isi teks</label>
     <textarea name="text_content" rows="8"><?= esc($material['text_content'] ?? '') ?></textarea>
   </div>
 
   <div id="fileBox" style="display:none">
-    <label>Upload file (audio/video/pdf/image)</label>
+    <label>Unggah berkas (audio/video/pdf/gambar)</label>
     <input type="file" name="file">
     <?php if (!empty($file['url_path'])): ?>
-      <p class="muted">File saat ini: <a href="<?= esc($file['url_path']) ?>" target="_blank"><?= esc($file['filename']) ?></a></p>
+      <p class="muted">Berkas saat ini: <a href="<?= esc($file['url_path']) ?>" target="_blank"><?= esc($file['filename']) ?></a></p>
       <label class="muted tiny" style="display:block;margin-top:6px">
-        <input type="checkbox" name="delete_file" value="1"> Hapus file saat ini
+        <input type="checkbox" name="delete_file" value="1"> Hapus berkas saat ini
       </label>
     <?php endif; ?>
   </div>
@@ -49,17 +49,17 @@ $embedQuery = $embed ? '&embed=1' : '';
   <div id="folderBox" style="display:none">
     <label>Daftar teks (1 baris = 1 teks)</label>
     <textarea id="textItemsInput" name="text_items" rows="8" placeholder="Contoh:&#10;Apel&#10;Jeruk&#10;Mangga"><?= esc(($material['type'] ?? '') === 'folder' ? ($material['text_content'] ?? '') : '') ?></textarea>
-    <div class="muted tiny" style="margin-top:6px">Urutkan teks dengan drag di bawah (tersimpan).</div>
+    <div class="muted tiny" style="margin-top:6px">Urutkan teks dengan geser di bawah (tersimpan).</div>
     <ul id="textList" class="materialList sortable" style="margin-top:6px"></ul>
 
-    <label style="margin-top:10px">Upload file (boleh lebih dari satu)</label>
+    <label style="margin-top:10px">Unggah berkas (boleh lebih dari satu)</label>
     <input type="file" name="files[]" multiple>
 
     <?php if (!empty($files)): ?>
-      <div class="muted tiny" style="margin-top:10px">Urutkan file dengan drag (tersimpan). Centang untuk hapus.</div>
+      <div class="muted tiny" style="margin-top:10px">Urutkan berkas dengan geser (tersimpan). Centang untuk hapus.</div>
       <ul id="fileList" class="materialList sortable" style="margin-top:6px">
         <?php foreach ($files as $f): ?>
-          <li class="materialItem" draggable="true" data-file-id="<?= (int)$f['id'] ?>">
+          <li class="materialItem" gesergable="true" data-file-id="<?= (int)$f['id'] ?>">
             <div class="label">
               <div><?= esc($f['filename']) ?></div>
               <div class="muted tiny"><?= esc($f['mime'] ?? '') ?></div>
@@ -73,7 +73,7 @@ $embedQuery = $embed ? '&embed=1' : '';
   </div>
 
   <div class="row gap">
-    <button type="submit">Simpan</button>
+    <button type="submit" class="btn">Simpan</button>
     <a class="btn" href="/admin/settings?tab=materials&mat=list<?= $embedQuery ?>">Batal</a>
   </div>
 </form>
@@ -101,9 +101,9 @@ $embedQuery = $embed ? '&embed=1' : '';
     items.forEach((t)=>{
       const li = document.createElement('li');
       li.className = 'materialItem';
-      li.draggable = true;
+      li.gesergable = true;
       li.dataset.text = t;
-      li.innerHTML = `<div class="label">${t}</div><span class="muted tiny">drag</span>`;
+      li.innerHTML = `<div class="label">${t}</div><span class="muted tiny">geser</span>`;
       textList.appendChild(li);
     });
   }
@@ -116,29 +116,29 @@ $embedQuery = $embed ? '&embed=1' : '';
 
   function enableDrag(listEl, onReorder){
     if(!listEl) return;
-    let dragging = null;
-    listEl.addEventListener('dragstart', (e)=>{
+    let geserging = null;
+    listEl.addEventListener('geserstart', (e)=>{
       const li = e.target.closest('li');
       if(!li) return;
-      dragging = li;
-      li.classList.add('dragging');
+      geserging = li;
+      li.classList.add('geserging');
       e.dataTransfer.effectAllowed = 'move';
     });
-    listEl.addEventListener('dragend', ()=>{
-      if(dragging) dragging.classList.remove('dragging');
-      dragging = null;
+    listEl.addEventListener('geserend', ()=>{
+      if(geserging) geserging.classList.remove('geserging');
+      geserging = null;
       if(onReorder) onReorder();
     });
-    listEl.addEventListener('dragover', (e)=>{
+    listEl.addEventListener('geserover', (e)=>{
       e.preventDefault();
       const li = e.target.closest('li');
-      if(!li || li === dragging) return;
+      if(!li || li === geserging) return;
       const rect = li.getBoundingClientRect();
       const after = (e.clientY - rect.top) > rect.height / 2;
       if(after){
-        li.after(dragging);
+        li.after(geserging);
       }else{
-        li.before(dragging);
+        li.before(geserging);
       }
     });
     listEl.addEventListener('drop', (e)=>{
@@ -179,3 +179,4 @@ $embedQuery = $embed ? '&embed=1' : '';
   }
   sync();
 </script>
+

@@ -1,7 +1,7 @@
 <?= $this->extend('layout/main') ?>
 <?= $this->section('content') ?>
 <h1>Menunggu Sesi Dimulai</h1>
-<p>Belum ada <b>Sesi yang Aktif</b> atau<b> Sesi Telah Selesai</b>.</p>
+<p>Belum ada <b>sesi yang aktif</b> atau sesi sebelumnya sudah selesai.</p>
 
 <form method="post" action="/login/student" class="card" style="max-width:560px">
   <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
@@ -13,7 +13,7 @@
 
   <h2 style="margin:0 0 6px">Profil Siswa</h2>
   <p class="muted tiny" style="margin:0 0 10px">
-    Ubah data langsung di sini atau lewat menu Pengaturan. Gabung sesi dilakukan manual dengan tombol "Gabung Lagi".
+    Ubah data langsung di sini atau lewat menu pengaturan. Gabung sesi dilakukan manual dengan tombol "Gabung Lagi".
   </p>
 
   <label>Nama lengkap</label>
@@ -38,14 +38,15 @@
   <input
     name="device_label"
     maxlength="60"
-    placeholder="PC-01"
+    placeholder="Komputer-01"
     value="<?= esc($device_label ?? session('device_label') ?? '') ?>"
   >
 
   <div class="row gap wrap" style="margin-top:10px">
-    <button type="submit" formaction="/waiting/profile" class="ok">Simpan Profil Terbaru</button>
-    <a href="/logout/student" class="btn danger" onclick="return confirm('Keluar dari mode menunggu sesi?');">Logout Siswa</a>
-    <button type="submit">Coba Lagi</button>
+    <button type="submit" formaction="/waiting/profile" class="btn ok">Simpan Profil Terbaru</button>
+    <a href="/logout/student" class="btn danger" onclick="return confirm('Keluar dari mode menunggu sesi?');">Keluar Siswa</a>
+    <button type="submit" class="btn">Coba Masuk Lagi</button>
   </div>
 </form>
 <?= $this->endSection() ?>
+

@@ -84,7 +84,7 @@ class BaseController extends Controller
     protected function requireAdmin()
     {
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
         return null;
     }
@@ -95,7 +95,7 @@ class BaseController extends Controller
     protected function requireParticipant()
     {
         if ($this->participantId() <= 0 || $this->sessionId() <= 0) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
         return null;
     }
@@ -267,3 +267,4 @@ class BaseController extends Controller
         return $fresh;
     }
 }
+

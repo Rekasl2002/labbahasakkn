@@ -16,19 +16,19 @@ class ControlApi extends BaseController
     public function toggleMic()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         $participantId = (int) session()->get('participant_id');
         $sessionId = (int) session()->get('session_id');
 
         if (!$participantId || !$sessionId) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
@@ -44,7 +44,7 @@ class ControlApi extends BaseController
                  ->first();
 
         if (!$me) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         $new = !empty($me['mic_on']) ? 0 : 1;
@@ -67,19 +67,19 @@ class ControlApi extends BaseController
     public function toggleSpeaker()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         $participantId = (int) session()->get('participant_id');
         $sessionId = (int) session()->get('session_id');
 
         if (!$participantId || !$sessionId) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active || (int) ($active['id'] ?? 0) !== $sessionId) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $state = (new SessionStateModel())->where('session_id', $sessionId)->first();
@@ -94,7 +94,7 @@ class ControlApi extends BaseController
                  ->first();
 
         if (!$me) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         $new = !empty($me['speaker_on']) ? 0 : 1;
@@ -116,23 +116,23 @@ class ControlApi extends BaseController
     public function adminSetMic()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $sessionId = (int) $active['id'];
 
         $pid = (int) $this->request->getPost('participant_id');
         if ($pid <= 0) {
-            return $this->json(['ok' => false, 'error' => 'participant_id required'], 400);
+            return $this->json(['ok' => false, 'error' => 'participant_id wajib diisi'], 400);
         }
 
         $mic = (int) $this->request->getPost('mic_on');
@@ -147,7 +147,7 @@ class ControlApi extends BaseController
                 ->first();
 
         if (!$p) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         $pm->update($pid, ['mic_on' => $mic]);
@@ -168,23 +168,23 @@ class ControlApi extends BaseController
     public function adminSetSpeaker()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $sessionId = (int) $active['id'];
 
         $pid = (int) $this->request->getPost('participant_id');
         if ($pid <= 0) {
-            return $this->json(['ok' => false, 'error' => 'participant_id required'], 400);
+            return $this->json(['ok' => false, 'error' => 'participant_id wajib diisi'], 400);
         }
 
         $spk = (int) $this->request->getPost('speaker_on');
@@ -199,7 +199,7 @@ class ControlApi extends BaseController
                 ->first();
 
         if (!$p) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         $pm->update($pid, ['speaker_on' => $spk]);
@@ -221,22 +221,22 @@ class ControlApi extends BaseController
     public function adminWarnParticipant()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $sessionId = (int) $active['id'];
         $pid = (int) $this->request->getPost('participant_id');
         if ($pid <= 0) {
-            return $this->json(['ok' => false, 'error' => 'participant_id required'], 400);
+            return $this->json(['ok' => false, 'error' => 'participant_id wajib diisi'], 400);
         }
 
         $message = trim((string) $this->request->getPost('message'));
@@ -262,7 +262,7 @@ class ControlApi extends BaseController
             ->first();
 
         if (!$participant) {
-            return $this->json(['ok' => false, 'error' => 'Participant not found'], 404);
+            return $this->json(['ok' => false, 'error' => 'Peserta tidak ditemukan'], 404);
         }
 
         helper('settings');
@@ -294,16 +294,16 @@ class ControlApi extends BaseController
     public function adminSetAll()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $sessionId = (int) $active['id'];
@@ -317,7 +317,7 @@ class ControlApi extends BaseController
         if ($spk !== null) $data['speaker_on'] = ((int) $spk) ? 1 : 0;
 
         if (!$data) {
-            return $this->json(['ok' => false, 'error' => 'No data'], 400);
+            return $this->json(['ok' => false, 'error' => 'Data tidak ditemukan'], 400);
         }
 
         // Update massal (lebih cepat daripada loop update satu-satu)
@@ -353,16 +353,16 @@ class ControlApi extends BaseController
     public function adminSetBroadcastText()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $text = trim((string) $this->request->getPost('broadcast_text'));
@@ -431,16 +431,16 @@ class ControlApi extends BaseController
     public function adminSetVoiceLock()
     {
         if (strtoupper($this->request->getMethod()) !== 'POST') {
-            return $this->json(['ok' => false, 'error' => 'Method not allowed'], 405);
+            return $this->json(['ok' => false, 'error' => 'Metode tidak diizinkan'], 405);
         }
 
         if (!$this->isAdmin()) {
-            return $this->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            return $this->json(['ok' => false, 'error' => 'Akses ditolak'], 401);
         }
 
         $active = $this->getActiveSession();
         if (!$active) {
-            return $this->json(['ok' => false, 'error' => 'No active session'], 400);
+            return $this->json(['ok' => false, 'error' => 'Tidak ada sesi aktif'], 400);
         }
 
         $allowMic = $this->request->getPost('allow_student_mic');
@@ -451,7 +451,7 @@ class ControlApi extends BaseController
         if ($allowSpk !== null) $data['allow_student_speaker'] = ((int) $allowSpk) ? 1 : 0;
 
         if (!$data) {
-            return $this->json(['ok' => false, 'error' => 'No data'], 400);
+            return $this->json(['ok' => false, 'error' => 'Data tidak ditemukan'], 400);
         }
 
         $sessionId = (int) $active['id'];
@@ -482,3 +482,4 @@ class ControlApi extends BaseController
         return parent::getActiveSession($autoCloseExpired);
     }
 }
+

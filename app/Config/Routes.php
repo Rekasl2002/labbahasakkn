@@ -63,6 +63,7 @@ $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
     $routes->post('session/start', 'AdminController::startSession');
     $routes->post('session/end', 'AdminController::endSession');
     $routes->post('session/extend', 'AdminController::extendSession');
+    $routes->post('session/(:num)/delete', 'AdminController::deleteSession/$1');
     $routes->get('session/(:num)/recap', 'AdminController::recap/$1');
     $routes->get('session/(:num)/report/excel', 'AdminController::exportRecapExcel/$1');
     $routes->get('session/(:num)/report/pdf', 'AdminController::exportRecapPdf/$1');
