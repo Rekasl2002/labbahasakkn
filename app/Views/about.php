@@ -19,9 +19,6 @@ $tutorialItems = lab_tutorial_items_for_role($role);
 
 <section class="card" style="margin-top:12px">
   <h2 style="margin:0 0 8px">Panduan Penggunaan</h2>
-  <p class="muted tiny" style="margin:0 0 10px">
-    Buka panduan sesuai peran melalui tombol berikut.
-  </p>
 
   <?php if (empty($tutorialItems)): ?>
     <p class="muted" style="margin:0">File tutorial belum tersedia.</p>
