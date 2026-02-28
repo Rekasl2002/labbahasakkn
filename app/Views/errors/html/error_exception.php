@@ -1,31 +1,19 @@
 <?php
-/**
- * File Path: app/Views/errors/html/error_exception.php
- * SIB-K Themed Exception Page (Dev-friendly, Copyable)
- */
-
 if (function_exists('helper')) {
   helper('url');
 }
-
-$envValue = function (string $key, string $default = ''): string {
-  if (function_exists('env')) {
-    return (string) env($key, $default);
-  }
-  $envKey = strtoupper(str_replace('.', '_', $key));
-  $val = getenv($envKey);
-  return $val !== false ? (string) $val : $default;
-};
 
 $settingFunc = function_exists('setting') ? 'setting' : null;
 $settingValue = function (string $key, string $default, ?string $group = null) use ($settingFunc): string {
   if ($settingFunc === null) {
     return $default;
   }
+
   try {
     if ($group !== null) {
       return (string) call_user_func($settingFunc, $key, $default, $group);
     }
+
     return (string) call_user_func($settingFunc, $key, $default);
   } catch (\Throwable $t) {
     try {
@@ -40,6 +28,7 @@ $baseUrl = function (string $path = ''): string {
   if (function_exists('base_url')) {
     return (string) base_url($path);
   }
+
   $path = ltrim($path, '/');
   return '/' . $path;
 };
@@ -48,169 +37,64 @@ $normalizeText = function ($value, string $fallback = ''): string {
   if ($value === null) {
     return $fallback;
   }
+
   if (is_string($value)) {
     return $value;
   }
+
   if (is_int($value) || is_float($value) || is_bool($value)) {
     return (string) $value;
   }
+
   if (is_array($value)) {
     $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encoded !== false) {
       return $encoded;
     }
+
     return trim(print_r($value, true));
   }
+
   if (is_object($value)) {
     if (method_exists($value, '__toString')) {
       return (string) $value;
     }
+
     $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encoded !== false) {
       return $encoded;
     }
+
     return get_class($value);
   }
+
   return $fallback;
 };
 
-// Branding (aman kalau helper setting() belum ada)
 $appName = $settingValue('app_name', 'SIB-K', 'general');
-$schoolName = $settingValue('school_name', $envValue('school.name', ''), 'general');
-$logoPath = $settingValue('logo_path', 'assets/images/logo.png', 'branding');
 $faviconPath = $settingValue('favicon_path', 'assets/images/favicon.ico', 'branding');
-
-$logoUrl = $baseUrl($logoPath);
 $faviconUrl = $baseUrl($faviconPath);
 
-// Ambil exception & info yang mungkin dikirim CI (toleran berbagai versi/handler)
-$ex = $exception ?? null;
-
-$exClass   = $ex ? get_class($ex) : $normalizeText($type ?? 'Exception', 'Exception');
-$exMessage = $normalizeText($ex ? $ex->getMessage() : ($message ?? 'Exception'), 'Exception');
-$exFile    = $normalizeText($ex ? $ex->getFile() : ($file ?? ''), '');
-$exLine    = $ex ? (int) $ex->getLine() : (int) ($line ?? 0);
-
-// code/status
-$exCode = $ex ? (int) ($ex->getCode() ?: 0) : (int) ($code ?? 0);
-$statusCode = (int) ($statusCode ?? $status_code ?? 500);
-if ($statusCode <= 0) $statusCode = 500;
-
-// Trace: bisa dari $trace (string) atau dari exception
-$traceText = '';
-$traceArr  = [];
-
-if (isset($trace) && is_string($trace) && trim($trace) !== '') {
-  $traceText = $trace;
-} elseif ($ex) {
-  // String full exception (biasanya sudah termasuk stacktrace)
-  $traceText = (string) $ex;
-  $traceArr  = $ex->getTrace();
+$exceptionObj = $exception ?? null;
+$httpCode = (int) ($statusCode ?? $status_code ?? 500);
+if ($httpCode <= 0) {
+  $httpCode = 500;
 }
 
-// Request context (aman, ringkas)
-$req = null;
-if (function_exists('service')) {
-  try {
-    $req = service('request');
-  } catch (\Throwable $t) {
-    $req = null;
-  }
-}
+$errorType = $normalizeText(
+  $type ?? ($exceptionObj ? get_class($exceptionObj) : 'Exception'),
+  'Exception'
+);
 
-$now = date('Y-m-d H:i:s');
-$envName = defined('ENVIRONMENT') ? ENVIRONMENT : 'unknown';
-$phpVer  = PHP_VERSION;
-$ciVer = 'unknown';
+$headingText = $normalizeText(
+  $heading ?? ($title ?? 'Terjadi Kesalahan Sistem'),
+  'Terjadi Kesalahan Sistem'
+);
 
-// CI4 punya class constant: \CodeIgniter\CodeIgniter::CI_VERSION
-if (class_exists('\CodeIgniter\CodeIgniter') && defined('\CodeIgniter\CodeIgniter::CI_VERSION')) {
-    $ciVer = \CodeIgniter\CodeIgniter::CI_VERSION;
-} elseif (defined('CI_VERSION')) {
-    // fallback legacy: jangan panggil CI_VERSION langsung, pakai constant('CI_VERSION')
-    $ciVer = (string) constant('CI_VERSION');
-}
-
-
-$method = (is_object($req) && method_exists($req, 'getMethod'))
-  ? strtoupper((string) $req->getMethod())
-  : '';
-$currentUrl = '';
-try {
-  if (function_exists('current_url')) {
-    $currentUrl = current_url();
-  }
-} catch (\Throwable $t) {
-  $currentUrl = '';
-}
-
-$ip = (is_object($req) && method_exists($req, 'getIPAddress'))
-  ? (string) $req->getIPAddress()
-  : '';
-$ua = (is_object($req) && method_exists($req, 'getUserAgent') && $req->getUserAgent())
-  ? (string) $req->getUserAgent()
-  : ($_SERVER['HTTP_USER_AGENT'] ?? '');
-
-$get = $_GET ?? [];
-$post = $_POST ?? [];
-
-// Headers (ambil subset yang biasanya berguna)
-$headersSubset = [];
-try {
-  if (is_object($req) && method_exists($req, 'getHeaders')) {
-    $hdrs = $req->getHeaders();
-    $pick = ['host','referer','origin','content-type','accept','accept-language','x-requested-with','user-agent'];
-    foreach ($pick as $k) {
-      foreach ($hdrs as $hk => $hv) {
-        if (strtolower($hk) === $k) {
-          $headersSubset[$hk] = (string) $hv->getValueLine();
-        }
-      }
-    }
-  }
-} catch (\Throwable $t) {
-  $headersSubset = [];
-}
-
-// Helper pretty json
-$pretty = function ($v): string {
-  try {
-    return json_encode($v, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '';
-  } catch (\Throwable $t) {
-    return '';
-  }
-};
-
-// Build "Copy All" payload
-$allPayload = [];
-$allPayload[] = "=== SIB-K Exception Dump ===";
-$allPayload[] = "Time       : {$now}";
-$allPayload[] = "Env        : {$envName}";
-$allPayload[] = "PHP        : {$phpVer}";
-$allPayload[] = "CI         : {$ciVer}";
-$allPayload[] = "Status     : {$statusCode}";
-$allPayload[] = "Code       : {$exCode}";
-$allPayload[] = "Type       : {$exClass}";
-$allPayload[] = "Message    : {$exMessage}";
-$allPayload[] = "File       : {$exFile}";
-$allPayload[] = "Line       : {$exLine}";
-$allPayload[] = "";
-$allPayload[] = "--- Request ---";
-$allPayload[] = "Method     : {$method}";
-$allPayload[] = "URL        : {$currentUrl}";
-$allPayload[] = "IP         : {$ip}";
-$allPayload[] = "User-Agent : {$ua}";
-$allPayload[] = "";
-$allPayload[] = "GET        : " . ($pretty($get) ?: '[]');
-$allPayload[] = "POST       : " . ($pretty($post) ?: '[]');
-$allPayload[] = "Headers    : " . ($pretty($headersSubset) ?: '{}');
-$allPayload[] = "";
-$allPayload[] = "--- Trace ---";
-$allPayload[] = $traceText ?: '(no trace available)';
-$allPayloadStr = implode("\n", $allPayload);
-
-// UI labels safe
-$title = $normalizeText($title ?? 'Exception', 'Exception');
+$messageText = $normalizeText(
+  $message ?? ($exceptionObj ? $exceptionObj->getMessage() : 'Terjadi kesalahan saat memproses permintaan.'),
+  'Terjadi kesalahan saat memproses permintaan.'
+);
 ?>
 <!doctype html>
 <html lang="id">
@@ -219,424 +103,127 @@ $title = $normalizeText($title ?? 'Exception', 'Exception');
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= esc($appName) ?> - Exception</title>
   <link rel="icon" href="<?= esc($faviconUrl) ?>" type="image/x-icon">
-
   <style>
-    :root{
-      --sibk-primary:#1f6f54;
-      --sibk-primary-2:#0f3b2c;
-      --sibk-primary-3:#082318;
-      --sibk-accent:#d1a545;
-      --surface:rgba(255,255,255,.92);
-      --text:#0f172a;
-      --muted:#64748b;
-      --border:rgba(15,23,42,.12);
-      --shadow:0 18px 55px rgba(2,8,6,.35);
-      --radius:22px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
     *{box-sizing:border-box}
     body{
       margin:0;
       min-height:100vh;
+      padding:24px 16px;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      background:#f3faf5;
+      color:#163229;
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:18px;
-      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-      background:
-        radial-gradient(1200px 420px at -10% -10%, rgba(255,255,255,.10), transparent 60%),
-        radial-gradient(900px 520px at 110% 0%, rgba(209,165,69,.14), transparent 60%),
-        linear-gradient(180deg, var(--sibk-primary) 0%, var(--sibk-primary-2) 52%, var(--sibk-primary-3) 100%);
-      color:var(--text);
     }
-    .wrap{width:100%;max-width:1100px}
-    .card{
-      background:var(--surface);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-      backdrop-filter: blur(10px);
-    }
-    .head{
-      padding:18px;
-      background:
-        radial-gradient(900px 260px at -10% -10%, rgba(255,255,255,.14), transparent 60%),
-        linear-gradient(180deg, #1f6f54 0%, #0f3b2c 55%, #082318 100%);
-      border-top:4px solid var(--sibk-accent);
-      color:#fff;
-    }
-    .brand{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-    .brand-left{display:flex;gap:12px;align-items:center;min-width:0}
-    .logo{
-      width:46px;height:46px;border-radius:14px;
-      background:rgba(255,255,255,.92);
-      display:flex;align-items:center;justify-content:center;
-      padding:6px;border:1px solid rgba(255,255,255,.25);
-      flex:0 0 auto;
-    }
-    .logo img{width:100%;height:100%;object-fit:contain}
-    .bt{line-height:1.05;min-width:0}
-    .bt .app{margin:0;font-weight:900;letter-spacing:.2px}
-    .bt .school{margin:3px 0 0;font-size:.85rem;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:540px}
-    .top-actions{display:flex;gap:10px;align-items:center}
-    .pill{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:7px 10px;border-radius:999px;
-      background:rgba(0,0,0,.20);
-      border:1px solid rgba(255,255,255,.18);
-      color:#fff;font-weight:900;font-size:.82rem;
-      user-select:none;
-    }
-    .btn{
-      border:0;cursor:pointer;
-      height:38px;padding:0 12px;border-radius:12px;
-      font-weight:900;letter-spacing:.2px;
-      display:inline-flex;align-items:center;justify-content:center;
-      text-decoration:none;
-      user-select:none;
-      transition:transform .12s ease, opacity .12s ease;
-    }
-    .btn:hover{transform:translateY(-1px)}
-    .btn:active{transform:translateY(0)}
-    .btn-copy{
-      color:#fff;
-      background:rgba(255,255,255,.16);
-      border:1px solid rgba(255,255,255,.22);
-    }
-
-    .body{padding:18px}
-    .grid{
-      display:grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap:14px;
-    }
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-    }
-
-    .panel{
-      background:rgba(255,255,255,.88);
-      border:1px solid var(--border);
-      border-radius:18px;
-      padding:14px;
-    }
-    .panel h2{
-      margin:0 0 10px;
-      font-size:1rem;
-      font-weight:950;
-      letter-spacing:.2px;
-      color:rgba(15,23,42,.85);
-    }
-    .meta{
-      display:grid;
-      grid-template-columns: 140px 1fr;
-      gap:6px 10px;
-      font-size:.9rem;
-      color:rgba(15,23,42,.72);
-    }
-    .k{color:rgba(15,23,42,.55);font-weight:800}
-    .v{font-family:var(--mono);font-size:.88rem;color:rgba(15,23,42,.82);word-break:break-word}
-    .badge-danger{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:6px 10px;border-radius:999px;
-      background:rgba(239,68,68,.14);
-      border:1px solid rgba(239,68,68,.18);
-      color:rgba(153,27,27,1);
-      font-weight:950;
-      font-size:.82rem;
-      margin-bottom:10px;
-    }
-
-    .copybar{
-      display:flex;gap:10px;flex-wrap:wrap;align-items:center;
-      margin-bottom:10px;
-    }
-    .btn-primary{
-      color:#fff;
-      background:
-        radial-gradient(700px 140px at 20% 0%, rgba(255,255,255,.16), transparent 55%),
-        linear-gradient(135deg, #1f6f54 0%, #165a45 55%, #0b2b21 100%);
-      box-shadow:0 14px 30px rgba(2,20,14,.18);
-    }
-    .btn-ghost{
-      background:rgba(15,23,42,.06);
-      border:1px solid rgba(15,23,42,.10);
-      color:rgba(15,23,42,.78);
-    }
-
-    .ta{
+    .auth-choose{
       width:100%;
-      min-height: 190px;
-      resize:vertical;
+      max-width:960px;
+      margin:32px auto;
+      padding:24px 16px;
+      background:#e8f5e8;
+      border:1px solid #cfe6d8;
       border-radius:16px;
-      border:1px solid rgba(15,23,42,.12);
-      background:rgba(15,23,42,.04);
-      padding:12px 12px;
-      font-family:var(--mono);
-      font-size:.88rem;
-      color:rgba(15,23,42,.88);
-      line-height:1.35;
-      outline:none;
-      white-space:pre;
-      overflow:auto;
+      color:#163229;
     }
-    .ta:focus{border-color:rgba(31,111,84,.35);box-shadow:0 0 0 4px rgba(31,111,84,.10)}
-    .small{
-      font-size:.82rem;
-      color:rgba(15,23,42,.55);
-      margin-top:8px;
+    .auth-grid{
+      display:grid;
+      gap:36px;
+      max-width:800px;
+      margin:0 auto;
     }
-    details{
-      border-radius:18px;
-      border:1px solid rgba(15,23,42,.10);
-      background:rgba(255,255,255,.80);
-      padding:10px 12px;
+    .auth-choose .auth-card{
+      padding:32px 26px;
+      border-radius:12px;
+      box-shadow:0 6px 18px rgba(28,139,142,.10);
+      text-align:left;
+      min-width:0;
+      background:#ffffff;
+      border:1px solid #d4e8dd;
     }
-    summary{
+    .auth-avatar{
+      width:112px;
+      height:112px;
+      border-radius:50%;
+      border:8px solid #cde9dc;
+      background:#f3fbf7;
+      display:flex;
+      margin:0 auto 14px;
+      align-items:center;
+      justify-content:center;
+      color:#2e7d32;
+      font-size:34px;
+      font-weight:800;
+    }
+    .auth-title{
+      text-align:center;
+      font-size:24px;
+      margin:6px 0 8px;
+      font-weight:700;
+      color:#163229;
+    }
+    .hint-muted{
+      text-align:center;
+      color:#5f7a6f;
+      font-size:14px;
+      margin:10px 0;
+      word-break:break-word;
+    }
+    .muted.tiny{
+      font-size:12px;
+      color:#5d6a64;
+      margin-top:12px;
+      text-align:center;
+      word-break:break-word;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#f3fbf7;
+      border:1px solid #cde9dc;
+      color:#2e7d32;
+      font-size:12px;
+      font-weight:700;
+      margin:0 auto 14px;
+    }
+    .chip-wrap{text-align:center}
+    .action-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+    .btn-green{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background:#3ba776;
+      color:#113126;
+      border:none;
+      padding:10px 18px;
+      border-radius:8px;
       cursor:pointer;
-      font-weight:950;
-      color:rgba(15,23,42,.78);
-      user-select:none;
+      text-decoration:none;
+      font-weight:600;
     }
-    .toast{
-      position:fixed;
-      right:14px;
-      bottom:14px;
-      background:rgba(15,23,42,.88);
-      color:#fff;
-      padding:10px 12px;
-      border-radius:14px;
-      font-weight:900;
-      font-size:.85rem;
-      opacity:0;
-      transform: translateY(8px);
-      pointer-events:none;
-      transition:opacity .18s ease, transform .18s ease;
-      z-index:9999;
-    }
-    .toast.show{
-      opacity:1;
-      transform: translateY(0);
-    }
+    .btn-soft{background:#d9efe4;color:#21463a}
   </style>
 </head>
-
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="head">
-        <div class="brand">
-          <div class="brand-left">
-            <div class="logo">
-              <img src="<?= esc($logoUrl) ?>" alt="Logo">
-            </div>
-            <div class="bt">
-              <p class="app"><?= esc($appName) ?></p>
-              <p class="school"><?= esc($schoolName) ?></p>
-            </div>
-          </div>
+  <div class="auth-choose">
+    <div class="auth-grid">
+      <section class="card auth-card">
+        <div class="auth-avatar">500</div>
+        <div class="chip-wrap"><span class="chip">HTTP <?= esc((string) $httpCode) ?></span></div>
+        <h1 class="auth-title"><?= esc($headingText) ?></h1>
+        <p class="hint-muted"><?= esc(strip_tags($messageText)) ?></p>
+        <p class="muted tiny">Jenis error: <?= esc($errorType) ?></p>
 
-          <div class="top-actions">
-            <span class="pill">ENV: <?= esc($envName) ?></span>
-            <span class="pill">HTTP <?= esc((string)$statusCode) ?></span>
-            <button class="btn btn-copy" type="button" onclick="copyFrom('ta-all')">Copy All</button>
-          </div>
+        <div class="action-row">
+          <a class="btn-green" href="<?= esc($baseUrl('/')) ?>">Ke Beranda</a>
+          <button class="btn-green btn-soft" type="button" onclick="history.back()">Kembali</button>
         </div>
-      </div>
 
-      <div class="body">
-        <div class="grid">
-          <!-- LEFT: Summary + Copyable blocks -->
-          <div class="panel">
-            <div class="badge-danger">EXCEPTION · <?= esc($exClass) ?></div>
-
-            <h2><?= esc($title) ?></h2>
-
-            <div class="meta" style="margin-bottom:12px;">
-              <div class="k">Message</div>
-              <div class="v"><?= esc($exMessage) ?></div>
-
-              <div class="k">File</div>
-              <div class="v"><?= esc($exFile) ?></div>
-
-              <div class="k">Line</div>
-              <div class="v"><?= esc((string)$exLine) ?></div>
-
-              <div class="k">Code</div>
-              <div class="v"><?= esc((string)$exCode) ?></div>
-
-              <div class="k">Time</div>
-              <div class="v"><?= esc($now) ?></div>
-            </div>
-
-            <div class="copybar">
-              <a class="btn btn-primary" href="<?= esc($baseUrl('/')) ?>">Ke Beranda</a>
-              <button class="btn btn-ghost" type="button" onclick="history.back()">Kembali</button>
-              <button class="btn btn-ghost" type="button" onclick="location.reload()">Muat Ulang</button>
-              <button class="btn btn-ghost" type="button" onclick="selectAll('ta-message')">Select Message</button>
-              <button class="btn btn-ghost" type="button" onclick="copyFrom('ta-message')">Copy Message</button>
-            </div>
-
-            <!-- Copyable: Message -->
-            <?php
-              $messageBlock = "[$exClass]\n"
-                . "Message: $exMessage\n"
-                . "File   : $exFile\n"
-                . "Line   : $exLine\n"
-                . "HTTP   : $statusCode\n"
-                . "Code   : $exCode\n"
-                . "Time   : $now\n";
-            ?>
-            <textarea id="ta-message" class="ta" readonly><?= esc($messageBlock) ?></textarea>
-
-            <div class="small">
-              Tip: klik textarea lalu <b>Ctrl+A</b> → <b>Ctrl+C</b> (atau tombol Copy).
-            </div>
-
-            <div style="height:12px"></div>
-
-            <!-- Copyable: Trace -->
-            <div class="copybar" style="margin-top:2px;">
-              <button class="btn btn-ghost" type="button" onclick="selectAll('ta-trace')">Select Trace</button>
-              <button class="btn btn-ghost" type="button" onclick="copyFrom('ta-trace')">Copy Trace</button>
-            </div>
-
-            <?php
-              // trace versi "ringkas + jelas"
-              $traceCompact = '';
-              if ($ex && !empty($traceArr)) {
-                $lines = [];
-                $i = 0;
-                foreach ($traceArr as $t) {
-                  $i++;
-                  $f = $t['file'] ?? '';
-                  $l = $t['line'] ?? '';
-                  $func = '';
-                  if (isset($t['class'], $t['type'], $t['function'])) {
-                    $func = $t['class'] . $t['type'] . $t['function'];
-                  } elseif (isset($t['function'])) {
-                    $func = (string)$t['function'];
-                  }
-                  $args = '';
-                  if (isset($t['args']) && is_array($t['args'])) {
-                    // Jangan dump args penuh (bisa besar), cukup count
-                    $args = ' args=' . count($t['args']);
-                  }
-                  $loc = trim($f . ($l ? ":$l" : ''));
-                  $lines[] = sprintf("#%d %s%s%s", $i, ($loc ? $loc . ' ' : ''), $func, $args);
-                }
-                $traceCompact = implode("\n", $lines);
-              }
-
-              $traceFinal = $traceCompact !== ''
-                ? $traceCompact
-                : ($traceText ?: '(no trace available)');
-            ?>
-            <textarea id="ta-trace" class="ta" readonly><?= esc($traceFinal) ?></textarea>
-
-            <div style="height:12px"></div>
-
-            <!-- Copyable: FULL dump (All) hidden but accessible -->
-            <textarea id="ta-all" class="ta" readonly style="position:absolute;left:-99999px;top:-99999px;height:1px;width:1px;opacity:0;"><?= esc($allPayloadStr) ?></textarea>
-          </div>
-
-          <!-- RIGHT: Request + Environment details -->
-          <div class="panel">
-            <h2>Request & Context</h2>
-
-            <?php
-              $ctx = [];
-              $ctx[] = "Method     : $method";
-              $ctx[] = "URL        : $currentUrl";
-              $ctx[] = "IP         : $ip";
-              $ctx[] = "User-Agent : $ua";
-              $ctx[] = "";
-              $ctx[] = "GET:";
-              $ctx[] = $pretty($get) ?: '[]';
-              $ctx[] = "";
-              $ctx[] = "POST:";
-              $ctx[] = $pretty($post) ?: '[]';
-              $ctx[] = "";
-              $ctx[] = "Headers (subset):";
-              $ctx[] = $pretty($headersSubset) ?: '{}';
-              $ctx[] = "";
-              $ctx[] = "Environment:";
-              $ctx[] = "ENV : $envName";
-              $ctx[] = "PHP : $phpVer";
-              $ctx[] = "CI  : $ciVer";
-
-              $ctxStr = implode("\n", $ctx);
-            ?>
-
-            <div class="copybar">
-              <button class="btn btn-ghost" type="button" onclick="selectAll('ta-ctx')">Select Context</button>
-              <button class="btn btn-ghost" type="button" onclick="copyFrom('ta-ctx')">Copy Context</button>
-            </div>
-
-            <textarea id="ta-ctx" class="ta" readonly><?= esc($ctxStr) ?></textarea>
-
-            <div style="height:12px"></div>
-
-            <details>
-              <summary>Catatan Keamanan (Dev Only)</summary>
-              <div class="small" style="margin-top:8px;">
-                Halaman ini menampilkan detail teknis (trace, request). Pastikan pada <b>production</b> kamu memakai error page umum (tanpa detail).
-              </div>
-            </details>
-          </div>
-        </div>
-      </div>
+        <p class="muted tiny">&copy; <?= date('Y') ?> <?= esc($appName) ?></p>
+      </section>
     </div>
   </div>
-
-  <div id="toast" class="toast">Copied ✅</div>
-
-  <script>
-    function showToast(text) {
-      const t = document.getElementById('toast');
-      if (!t) return;
-      t.textContent = text || 'Copied ✅';
-      t.classList.add('show');
-      clearTimeout(window.__sibkToastTimer);
-      window.__sibkToastTimer = setTimeout(() => t.classList.remove('show'), 1300);
-    }
-
-    function selectAll(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.focus();
-      el.select();
-      el.setSelectionRange(0, el.value.length);
-      showToast('Selected ✅');
-    }
-
-    async function copyFrom(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-
-      const text = el.value || el.textContent || '';
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          showToast('Copied ✅');
-          return;
-        }
-      } catch (e) {
-        // fallback below
-      }
-
-      // Fallback (execCommand)
-      try {
-        el.focus();
-        el.select();
-        el.setSelectionRange(0, el.value.length);
-        const ok = document.execCommand('copy');
-        showToast(ok ? 'Copied ✅' : 'Copy failed ❌');
-      } catch (e) {
-        showToast('Copy failed ❌');
-      }
-    }
-  </script>
 </body>
 </html>
