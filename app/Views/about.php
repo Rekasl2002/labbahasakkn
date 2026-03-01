@@ -4,6 +4,13 @@
 <?php
 helper('settings');
 
+$settings = lab_load_settings();
+$branding = lab_app_branding($settings);
+$appName = trim((string) ($branding['app_name'] ?? 'Lab Bahasa'));
+if ($appName === '') {
+    $appName = 'Lab Bahasa';
+}
+
 $role = 'guest';
 if (session('admin_id')) {
     $role = 'admin';
@@ -12,10 +19,55 @@ if (session('admin_id')) {
 }
 
 $tutorialItems = lab_tutorial_items_for_role($role);
+
+$teamMembers = [
+    'Reka Shakiralhamdi Latief',
+    'Adhitia Budi Prasetyo',
+    'Khabbab Abdurrasyid',
+    'Sri Sukmawati',
+    'Andini Faradilla Putri',
+];
 ?>
 
-<h1>Tentang</h1>
-<p>Aplikasi Lab Bahasa ini dibuat untuk membantu guru mengelola sesi, peserta, suara, pesan, dan materi dengan mudah.</p>
+<section class="pageHead">
+  <h1>Tentang <?= esc($appName) ?></h1>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <div class="row wrap gap" style="align-items:flex-start">
+      <img
+        src="<?= esc($branding['logo_url']) ?>"
+        alt="Logo <?= esc($appName) ?>"
+        style="width:64px; height:64px; border-radius:12px; border:1px solid var(--line); background:#fff; object-fit:cover"
+      >
+      <div style="flex:1; min-width:220px">
+        <h2 style="margin:0 0 6px">Ringkasan Aplikasi</h2>
+      </div>
+    </div>
+
+    <hr>
+    <p style="margin:0 0 6px">
+      <strong>Tujuan utama:</strong> memudahkan guru dalam mengelola aktivitas pembelajaran bahasa secara real-time.
+    </p>
+    <p class="muted tiny" style="margin:0 0 6px">
+      <?= esc($appName) ?> mendukung pengelolaan sesi, komunikasi kelas, kontrol audio peserta,
+      serta distribusi materi dalam satu panel terintegrasi.
+    </p>
+    <p class="muted tiny" style="margin:0 0 6px">
+      Proyek ini dikembangkan sebagai bagian dari kegiatan KKN STT Pratama Adi 2025-2026 PPI 31 Banjaran.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0 0 8px">Anggota Kelompok KKN STT Pratama Adi</h2>
+    <ul style="margin:0; padding-left:18px">
+      <?php foreach ($teamMembers as $member): ?>
+        <li><?= esc($member) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
+</div>
 
 <section class="card" style="margin-top:12px">
   <h2 style="margin:0 0 8px">Panduan Penggunaan</h2>
@@ -38,24 +90,15 @@ $tutorialItems = lab_tutorial_items_for_role($role);
   <?php endif; ?>
 </section>
 
-<footer class="card" style="margin-top:12px">
-  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
-    <div>
-      <p style="margin:0 0 8px">&copy; 2026 KKN STT Pratama Adi 2025-2026 PPI31 Banjaran</p>
-      <p style="margin:0 0 4px"><strong>Anggota Tim:</strong></p>
-      <p class="muted" style="margin:0 0 8px">Reka Shakiralhamdi Latief, Adhitia Budi Prasetyo, Khabbab Abdurrasyid, Sri Sukmawati, Andini Faradilla Putri</p>
-      <a href="https://github.com/Rekasl2002/labbahasakkn" target="_blank" rel="noopener">GitHub Repository</a>
-    </div>
-
-    <button
-      type="button"
-      class="btn"
-      onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '/'; }"
-      aria-label="Kembali ke halaman sebelumnya"
-    >
-      Kembali
-    </button>
-  </div>
-</footer>
+<div class="row wrap gap" style="justify-content:flex-end; margin-top:12px">
+  <button
+    type="button"
+    class="btn"
+    onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '/'; }"
+    aria-label="Kembali ke halaman sebelumnya"
+  >
+    Kembali
+  </button>
+</div>
 
 <?= $this->endSection() ?>

@@ -15,6 +15,7 @@ if ($role === 'admin') {
         'tutorial' => 'Panduan Tutorial',
         'auto-detect' => 'Deteksi Otomatis Komputer Siswa',
         'password' => 'Ubah Kata Sandi Guru',
+        'reset' => 'Reset Total Proyek',
         'materials' => 'Manajemen Materi',
     ];
 } elseif ($role === 'student') {

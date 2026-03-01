@@ -141,7 +141,7 @@ class AdminController extends BaseController
 
         $tab = (string) $this->request->getGet('tab');
         $tab = $tab !== '' ? $tab : 'auto-detect';
-        $allowedTabs = ['branding', 'warning-sound', 'tutorial', 'auto-detect', 'password', 'materials'];
+        $allowedTabs = ['branding', 'warning-sound', 'tutorial', 'auto-detect', 'password', 'materials', 'reset'];
         $embed = (string) $this->request->getGet('embed') === '1';
 
         $editId = (int) $this->request->getGet('edit_id');
@@ -211,6 +211,7 @@ class AdminController extends BaseController
             'warningSoundUrl' => $warningSoundUrl,
             'tutorialTeacher' => $tutorialTeacher,
             'tutorialStudent' => $tutorialStudent,
+            'resetPhrase' => $this->resetConfirmationPhrase(),
         ]);
     }
 
@@ -294,13 +295,23 @@ class AdminController extends BaseController
             $errors[] = 'Nama aplikasi wajib diisi.';
         }
 
+        $legacyDefaultLogoPath = '/favicon.ico';
+        $defaultLogoPath = lab_default_logo_path();
+        $resetLogo = (string) $this->request->getPost('app_logo_reset') === '1';
+        $resetFavicon = (string) $this->request->getPost('app_favicon_reset') === '1';
         $oldLogoPath = trim((string) ($current['logo_path'] ?? ''));
         $oldFaviconPath = trim((string) ($current['favicon_path'] ?? ''));
-        $newLogoPath = $oldLogoPath !== '' ? $oldLogoPath : '/favicon.ico';
-        $newFaviconPath = $oldFaviconPath !== '' ? $oldFaviconPath : $newLogoPath;
-        $logoReplaced = false;
+        $newLogoPath = $oldLogoPath;
+        $newFaviconPath = $oldFaviconPath;
         $faviconReplaced = false;
         $uploadedPaths = [];
+
+        if ($resetLogo) {
+            $newLogoPath = '';
+        }
+        if ($resetFavicon) {
+            $newFaviconPath = '';
+        }
 
         $logoFile = $this->request->getFile('app_logo');
         if ($logoFile && (int) $logoFile->getError() !== UPLOAD_ERR_NO_FILE) {
@@ -309,7 +320,6 @@ class AdminController extends BaseController
                 $errors[] = (string) $logoUpload['error'];
             } elseif (!empty($logoUpload['path'])) {
                 $newLogoPath = (string) $logoUpload['path'];
-                $logoReplaced = true;
                 $uploadedPaths[] = $newLogoPath;
             }
         }
@@ -326,19 +336,18 @@ class AdminController extends BaseController
             }
         }
 
+        $logoChanged = $newLogoPath !== $oldLogoPath;
         if (
-            $logoReplaced
+            $logoChanged
             && !$faviconReplaced
+            && !$resetFavicon
             && (
-                $oldFaviconPath === ''
-                || $oldFaviconPath === '/favicon.ico'
-                || $oldFaviconPath === $oldLogoPath
+                $oldFaviconPath !== ''
+                && $oldFaviconPath === $oldLogoPath
+                && $oldFaviconPath !== $legacyDefaultLogoPath
+                && $oldFaviconPath !== $defaultLogoPath
             )
         ) {
-            $newFaviconPath = $newLogoPath;
-        }
-
-        if ($newFaviconPath === '') {
             $newFaviconPath = $newLogoPath;
         }
 
@@ -362,11 +371,12 @@ class AdminController extends BaseController
             return redirect()->back()->with('error', 'Gagal menyimpan branding aplikasi.');
         }
 
-        if ($logoReplaced && $oldLogoPath !== '' && $oldLogoPath !== $newLogoPath && $oldLogoPath !== $newFaviconPath) {
+        if ($logoChanged && $oldLogoPath !== '' && $oldLogoPath !== $newLogoPath && $oldLogoPath !== $newFaviconPath) {
             $this->deleteManagedBrandingFile($oldLogoPath);
         }
 
-        if ($faviconReplaced && $oldFaviconPath !== '' && $oldFaviconPath !== $newFaviconPath && $oldFaviconPath !== $newLogoPath) {
+        $faviconChanged = $newFaviconPath !== $oldFaviconPath;
+        if ($faviconChanged && $oldFaviconPath !== '' && $oldFaviconPath !== $newFaviconPath && $oldFaviconPath !== $newLogoPath) {
             $this->deleteManagedBrandingFile($oldFaviconPath);
         }
 
@@ -528,6 +538,16 @@ class AdminController extends BaseController
     {
         return (string) $this->request->getPost('embed') === '1'
             || (string) $this->request->getGet('embed') === '1';
+    }
+
+    private function resetConfirmationPhrase(): string
+    {
+        return 'RESET TOTAL';
+    }
+
+    private function resetSettingsTarget(bool $embed): string
+    {
+        return '/admin/settings?tab=reset' . ($embed ? '&embed=1' : '');
     }
 
     private function storeBrandingUpload($file, string $kind): array
@@ -785,6 +805,172 @@ class AdminController extends BaseController
         $embed = (string) $this->request->getPost('embed') === '1' || (string) $this->request->getGet('embed') === '1';
         $target = '/admin/settings?tab=password' . ($embed ? '&embed=1' : '');
         return redirect()->to($target)->with('ok', 'Kata sandi guru berhasil diubah.');
+    }
+
+    public function resetProject()
+    {
+        helper(['settings', 'remember']);
+
+        $embed = $this->isEmbedSettingsRequest();
+        $target = $this->resetSettingsTarget($embed);
+        $confirmPhrase = $this->resetConfirmationPhrase();
+
+        $currentPassword = (string) $this->request->getPost('current_password');
+        $typedPhrase = trim((string) $this->request->getPost('reset_phrase'));
+        $agree = (string) $this->request->getPost('reset_agree') === '1';
+
+        if ($currentPassword === '') {
+            return redirect()->to($target)->with('error', 'Kata sandi guru wajib diisi.');
+        }
+        if ($typedPhrase !== $confirmPhrase) {
+            return redirect()->to($target)->with('error', 'Frasa konfirmasi reset tidak cocok.');
+        }
+        if (!$agree) {
+            return redirect()->to($target)->with('error', 'Centang persetujuan reset total terlebih dahulu.');
+        }
+
+        if ($this->getActiveSessionRaw()) {
+            return redirect()->to($target)->with('error', 'Tutup sesi aktif terlebih dahulu sebelum reset total.');
+        }
+
+        $adminId = (int) session()->get('admin_id');
+        $admin = (new AdminModel())->find($adminId);
+        if (!$admin || !password_verify($currentPassword, (string) ($admin['password_hash'] ?? ''))) {
+            return redirect()->to($target)->with('error', 'Kata sandi guru tidak valid.');
+        }
+
+        $adminUsername = trim((string) ($admin['username'] ?? ''));
+        if ($adminUsername === '') {
+            $adminUsername = 'admin';
+        }
+
+        $passwordHash = (string) ($admin['password_hash'] ?? '');
+        if ($passwordHash === '') {
+            return redirect()->to($target)->with('error', 'Data akun guru tidak valid.');
+        }
+
+        $db = db_connect();
+        $fileCleanupFailed = [];
+
+        try {
+            $tablesToClear = ['events', 'messages', 'participants', 'session_state', 'sessions', 'material_files', 'materials', 'admins'];
+
+            $this->setForeignKeyChecks($db, false);
+            foreach ($tablesToClear as $tableName) {
+                if (!$db->tableExists($tableName)) {
+                    continue;
+                }
+                $db->table($tableName)->truncate();
+            }
+
+            $newAdminId = (int) (new AdminModel())->insert([
+                'username' => $adminUsername,
+                'password_hash' => $passwordHash,
+                'created_at' => date('Y-m-d H:i:s'),
+            ], true);
+            if ($newAdminId <= 0) {
+                throw new \RuntimeException('Gagal membuat ulang akun guru.');
+            }
+
+            if (!lab_save_settings(lab_default_settings())) {
+                throw new \RuntimeException('Gagal mereset pengaturan aplikasi.');
+            }
+
+            $pathsToClean = [
+                ROOTPATH . 'public/uploads/materials',
+                ROOTPATH . 'public/uploads/branding',
+                ROOTPATH . 'public/uploads/warnings',
+                ROOTPATH . 'public/uploads/tutorials',
+            ];
+
+            foreach ($pathsToClean as $path) {
+                if (!$this->purgeDirectoryContents($path)) {
+                    $fileCleanupFailed[] = $path;
+                }
+            }
+
+            session()->remove([
+                'admin_id',
+                'admin_username',
+                'session_id',
+                'participant_id',
+                'student_name',
+                'class_name',
+                'device_label',
+                'student_waiting',
+                'waiting_student_profile',
+            ]);
+
+            $response = redirect()->to('/login?logged_out=1')->with(
+                'ok',
+                empty($fileCleanupFailed)
+                    ? 'Reset total berhasil. Silakan masuk kembali.'
+                    : 'Reset database berhasil, tetapi ada file yang tidak dapat dihapus. Silakan masuk kembali.'
+            );
+            $response->deleteCookie(LAB_COOKIE_ADMIN);
+            $response->deleteCookie(LAB_COOKIE_PARTICIPANT);
+            $response->deleteCookie(LAB_COOKIE_WAITING);
+            $response->deleteCookie(LAB_COOKIE_DEVICE);
+
+            return $response;
+        } catch (\Throwable $e) {
+            log_message('error', 'Reset total gagal: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            $message = 'Reset total gagal diproses.';
+            if (ENVIRONMENT !== 'production') {
+                $message .= ' ' . $e->getMessage();
+            }
+            return redirect()->to($target)->with('error', $message);
+        } finally {
+            $this->setForeignKeyChecks($db, true);
+        }
+    }
+
+    private function setForeignKeyChecks($db, bool $enabled): void
+    {
+        try {
+            $db->query('SET FOREIGN_KEY_CHECKS=' . ($enabled ? '1' : '0'));
+        } catch (\Throwable $e) {
+            // Abaikan jika driver database tidak mendukung.
+        }
+    }
+
+    private function purgeDirectoryContents(string $directory): bool
+    {
+        if (!is_dir($directory)) {
+            return true;
+        }
+
+        $items = @scandir($directory);
+        if ($items === false) {
+            return false;
+        }
+
+        $ok = true;
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                if (!$this->purgeDirectoryContents($path)) {
+                    $ok = false;
+                }
+                if (!@rmdir($path) && is_dir($path)) {
+                    $ok = false;
+                }
+                continue;
+            }
+
+            if (!@unlink($path) && (is_file($path) || is_link($path))) {
+                $ok = false;
+            }
+        }
+
+        return $ok;
     }
 
     public function startSession()

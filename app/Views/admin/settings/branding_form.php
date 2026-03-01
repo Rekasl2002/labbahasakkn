@@ -8,6 +8,20 @@ $appNameValue = trim((string) ($settings['app_name'] ?? ($branding['app_name'] ?
 if ($appNameValue === '') {
     $appNameValue = 'Lab Bahasa';
 }
+$defaultLogoPath = lab_default_logo_path();
+$activeLogoPath = trim((string) ($branding['logo_path'] ?? ''));
+$configuredLogoPath = trim((string) ($settings['logo_path'] ?? ''));
+$logoIsDefault = $activeLogoPath !== '' && $activeLogoPath === $defaultLogoPath;
+$logoSourceText = $logoIsDefault
+    ? 'Sumber saat ini: file bawaan aplikasi.'
+    : ($configuredLogoPath !== '' ? 'Sumber saat ini: file kustom dari pengaturan.' : 'Sumber saat ini: file bawaan aplikasi.');
+$defaultFaviconPath = lab_default_favicon_path();
+$activeFaviconPath = trim((string) ($branding['favicon_path'] ?? ''));
+$configuredFaviconPath = trim((string) ($settings['favicon_path'] ?? ''));
+$faviconIsDefault = $activeFaviconPath !== '' && $activeFaviconPath === $defaultFaviconPath;
+$faviconSourceText = $faviconIsDefault
+    ? 'Sumber saat ini: file bawaan aplikasi.'
+    : ($configuredFaviconPath !== '' ? 'Sumber saat ini: file kustom dari pengaturan.' : 'Sumber saat ini: file bawaan aplikasi.');
 ?>
 
 <section class="card">
@@ -43,6 +57,14 @@ if ($appNameValue === '') {
       name="app_logo"
       accept=".png,.jpg,.jpeg,.webp,.svg,.ico,image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
     >
+    <p class="muted tiny" style="margin:6px 0 0"><?= esc($logoSourceText) ?></p>
+    <?php if ($activeLogoPath !== ''): ?>
+      <p class="muted tiny" style="margin:4px 0 0">Berkas aktif: <?= esc(basename($activeLogoPath)) ?></p>
+    <?php endif; ?>
+    <label class="muted tiny" style="display:flex; align-items:center; gap:8px; margin-top:8px">
+      <input type="checkbox" name="app_logo_reset" value="1" style="width:auto; margin:0; padding:0">
+      Gunakan kembali logo bawaan aplikasi
+    </label>
 
     <label>Ubah Ikon Halaman Web</label>
     <input
@@ -50,6 +72,14 @@ if ($appNameValue === '') {
       name="app_favicon"
       accept=".png,.jpg,.jpeg,.webp,.ico,image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon"
     >
+    <p class="muted tiny" style="margin:6px 0 0"><?= esc($faviconSourceText) ?></p>
+    <?php if ($activeFaviconPath !== ''): ?>
+      <p class="muted tiny" style="margin:4px 0 0">Berkas aktif: <?= esc(basename($activeFaviconPath)) ?></p>
+    <?php endif; ?>
+    <label class="muted tiny" style="display:flex; align-items:center; gap:8px; margin-top:8px">
+      <input type="checkbox" name="app_favicon_reset" value="1" style="width:auto; margin:0; padding:0">
+      Gunakan kembali ikon bawaan aplikasi
+    </label>
 
     <p class="muted tiny brandingHint">
       Disarankan ukuran ikon 32x32 atau 64x64 piksel. Format yang didukung: PNG, JPG, WEBP, SVG, ICO (maksimal 2MB).

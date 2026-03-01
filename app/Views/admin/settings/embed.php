@@ -14,6 +14,7 @@ $warningSoundPath = $warningSoundPath ?? '';
 $warningSoundUrl = $warningSoundUrl ?? '';
 $tutorialTeacher = is_array($tutorialTeacher ?? null) ? $tutorialTeacher : [];
 $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
+$resetPhrase = $resetPhrase ?? 'RESET TOTAL';
 ?>
 
 <header class="pageHead">
@@ -29,8 +30,9 @@ $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
   <a class="settingsTab <?= $tab === 'branding' ? 'active' : '' ?>" href="/admin/settings?tab=branding&embed=1">Tampilan Aplikasi</a>
   <a class="settingsTab <?= $tab === 'warning-sound' ? 'active' : '' ?>" href="/admin/settings?tab=warning-sound&embed=1">Suara Peringatan</a>
   <a class="settingsTab <?= $tab === 'tutorial' ? 'active' : '' ?>" href="/admin/settings?tab=tutorial&embed=1">Panduan Tutorial</a>
-  <a class="settingsTab <?= $tab === 'auto-detect' ? 'active' : '' ?>" href="/admin/settings?tab=auto-detect&embed=1">Deteksi Otomatis</a>
+  <a class="settingsTab <?= $tab === 'auto-detect' ? 'active' : '' ?>" href="/admin/settings?tab=auto-detect&embed=1">Deteksi IP Otomatis</a>
   <a class="settingsTab <?= $tab === 'password' ? 'active' : '' ?>" href="/admin/settings?tab=password&embed=1">Kata Sandi</a>
+  <a class="settingsTab <?= $tab === 'reset' ? 'active' : '' ?>" href="/admin/settings?tab=reset&embed=1">Reset Total</a>
   <a class="settingsTab <?= $tab === 'materials' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list&embed=1">Materi</a>
 </div>
 
@@ -52,7 +54,8 @@ $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
   <section class="card">
     <h2 style="margin:0 0 6px">Deteksi Otomatis Komputer Siswa</h2>
     <p class="muted tiny" style="margin:0 0 10px">
-      Isi rentang IP dan format nama. Gunakan <code>{n}</code> untuk nomor urut.
+      Isi rentang IP dan format nama. Gunakan <code>{n}</code> untuk nomor urut. Agar di halaman awal, "Nama/Nomor komputer" pada kotak Siswa dapat terisi otomatis dan 
+      terurut penomorannya sesuai IP Address di masing-masing Komputer Siswa.
     </p>
     <form method="post" action="/admin/settings">
       <?php if (function_exists('csrf_field')): ?><?= csrf_field() ?><?php endif; ?>
@@ -89,6 +92,11 @@ $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
       <button type="submit" class="ok" style="margin-top:10px">Simpan Kata Sandi</button>
     </form>
   </section>
+<?php elseif ($tab === 'reset'): ?>
+  <?= view('admin/settings/reset_form', [
+    'resetPhrase' => $resetPhrase,
+    'embed' => true,
+  ]) ?>
 <?php else: ?>
   <div class="settingsTabs">
     <a class="settingsTab <?= $materialsTab === 'list' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list&embed=1">Manajemen Materi</a>

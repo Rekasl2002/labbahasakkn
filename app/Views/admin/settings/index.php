@@ -14,6 +14,7 @@ $warningSoundPath = $warningSoundPath ?? '';
 $warningSoundUrl = $warningSoundUrl ?? '';
 $tutorialTeacher = is_array($tutorialTeacher ?? null) ? $tutorialTeacher : [];
 $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
+$resetPhrase = $resetPhrase ?? 'RESET TOTAL';
 ?>
 
 <?= view('layout/partials/sidebar_left_settings', ['role' => 'admin', 'tab' => $tab]) ?>
@@ -79,6 +80,10 @@ $tutorialStudent = is_array($tutorialStudent ?? null) ? $tutorialStudent : [];
         <button type="submit" class="ok" style="margin-top:10px">Simpan Kata Sandi</button>
       </form>
     </section>
+  <?php elseif ($tab === 'reset'): ?>
+    <?= view('admin/settings/reset_form', [
+      'resetPhrase' => $resetPhrase,
+    ]) ?>
   <?php else: ?>
     <div class="settingsTabs">
       <a class="settingsTab <?= $materialsTab === 'list' ? 'active' : '' ?>" href="/admin/settings?tab=materials&mat=list">Manajemen Materi</a>
