@@ -18,7 +18,16 @@
   const btnEnableAudio = document.getElementById('btnEnableAudio');
   const audioStatusEl = document.getElementById('audioStatus');
   const audioIndicatorEl = document.getElementById('studentAudioIndicator');
-  const remoteAudio = document.getElementById('remoteAudio');
+  const remoteAudio = (function(){
+    const existing = document.getElementById('remoteAudio');
+    if(existing) return existing;
+    const el = document.createElement('audio');
+    el.id = 'remoteAudio';
+    el.className = 'audioEl';
+    el.playsInline = true;
+    document.body.appendChild(el);
+    return el;
+  })();
   const selMic = document.getElementById('selMic');
   const selSpk = document.getElementById('selSpk');
   const rngMicVol = document.getElementById('rngMicVol');
@@ -34,6 +43,10 @@
     document.body.appendChild(el);
     return el;
   })();
+  if(remoteAudio){
+    remoteAudio.autoplay = true;
+    remoteAudio.playsInline = true;
+  }
 
   const state = {
     peers: new Map(),

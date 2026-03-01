@@ -80,6 +80,7 @@ $tutorialItems = lab_tutorial_items_for_role($role === 'admin' ? 'admin' : 'stud
           <input id="rngSpkVol" type="range" min="0" max="100" value="100" step="1" aria-label="Volume speaker siswa">
         </div>
       </div>
+      <audio id="remoteAudio" class="audioEl" playsinline></audio>
     </section>
   </aside>
 <?php elseif ($role === 'admin'): ?>
@@ -162,4 +163,3 @@ $tutorialItems = lab_tutorial_items_for_role($role === 'admin' ? 'admin' : 'stud
     </section>
   </aside>
 <?php endif; ?>
-
