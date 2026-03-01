@@ -7,13 +7,32 @@ if (!function_exists('lab_settings_path')) {
     }
 }
 
+if (!function_exists('lab_default_logo_path')) {
+    function lab_default_logo_path(): string
+    {
+        $defaultPath = '/assets/img/logo_tanpa_tulisan.png';
+        if (lab_public_asset_exists($defaultPath)) {
+            return $defaultPath;
+        }
+
+        return '/favicon.ico';
+    }
+}
+
+if (!function_exists('lab_default_favicon_path')) {
+    function lab_default_favicon_path(): string
+    {
+        return lab_default_logo_path();
+    }
+}
+
 if (!function_exists('lab_default_settings')) {
     function lab_default_settings(): array
     {
         return [
             'app_name' => 'Lab Bahasa',
-            'logo_path' => '/favicon.ico',
-            'favicon_path' => '/favicon.ico',
+            'logo_path' => '',
+            'favicon_path' => '',
             'warning_sound_path' => '',
             'tutorial_teacher_path' => '',
             'tutorial_student_path' => '',
@@ -276,6 +295,8 @@ if (!function_exists('lab_app_branding')) {
     function lab_app_branding(?array $settings = null): array
     {
         $settings = $settings ?? lab_load_settings();
+        $defaultLogoPath = lab_default_logo_path();
+        $defaultFaviconPath = lab_default_favicon_path();
 
         $appName = trim((string) ($settings['app_name'] ?? ''));
         if ($appName === '') {
@@ -283,12 +304,24 @@ if (!function_exists('lab_app_branding')) {
         }
 
         $logoPath = trim((string) ($settings['logo_path'] ?? ''));
-        if ($logoPath === '') {
-            $logoPath = '/favicon.ico';
+        if (
+            $logoPath === ''
+            || $logoPath === '/favicon.ico'
+            || !lab_public_asset_exists($logoPath)
+        ) {
+            $logoPath = $defaultLogoPath;
         }
 
         $faviconPath = trim((string) ($settings['favicon_path'] ?? ''));
-        if ($faviconPath === '') {
+        if (
+            $faviconPath === ''
+            || $faviconPath === '/favicon.ico'
+            || !lab_public_asset_exists($faviconPath)
+        ) {
+            $faviconPath = $defaultFaviconPath;
+        }
+
+        if (!lab_public_asset_exists($faviconPath)) {
             $faviconPath = $logoPath;
         }
 

@@ -70,6 +70,7 @@ $routes->group('admin', ['filter' => 'adminauth'], static function($routes) {
     $routes->get('settings', 'AdminController::settings');
     $routes->post('settings', 'AdminController::saveSettings');
     $routes->post('settings/password', 'AdminController::updatePassword');
+    $routes->post('settings/reset', 'AdminController::resetProject');
 
     // Materials management
     $routes->get('materials', 'MaterialController::index');

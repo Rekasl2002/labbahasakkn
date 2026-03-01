@@ -59,6 +59,7 @@ if ($path === 'admin/settings') {
         'tutorial' => 'Panduan Tutorial',
         'auto-detect' => 'Deteksi Otomatis Komputer',
         'password' => 'Ubah Kata Sandi Guru',
+        'reset' => 'Reset Total Proyek',
     ];
 
     if ($tab === 'materials') {
